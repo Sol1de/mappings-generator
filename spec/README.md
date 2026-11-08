@@ -15,6 +15,7 @@ consumer (for example a semantic symbol catalog) is a separate, downstream trans
 | [scope.md](scope.md) | Versions, loaders, launchers, and how the configuration matrix is discovered |
 | [sources.md](sources.md) | Upstream data providers, their coverage, integrity and licensing rules |
 | [namespaces.md](namespaces.md) | Runtime namespace of each configuration and how it is detected |
+| [evidence/runtime-namespaces.md](evidence/runtime-namespaces.md) | Upstream proofs (artifacts, hashes, observed excerpts) behind the runtime namespace table |
 | [model.md](model.md) | Internal mapping model and its operations |
 | [pipeline.md](pipeline.md) | Generation steps, reconstruction, verification, cache, determinism |
 | [formats.md](formats.md) | Input formats read and JSON output format written |
