@@ -52,7 +52,7 @@ line number, symbol). No panic on bad input. The CLI maps them to the exit codes
 | --- | --- | --- |
 | Unit | parsers, descriptors, model operations, classfile parser on generated class files | no |
 | Snapshot | small synthetic configurations end-to-end (`insta`) | no |
-| Integration | one representative configuration per era and loader (e.g. 1.7.10 Forge, 1.12.2 Forge, 1.16.5 Forge, 1.20.1 NeoForge, 1.21.11 Fabric, 26.x Vanilla, Lunar sample) | yes, `#[ignore]`, run on demand/CI schedule |
+| Integration | one representative configuration per era and loader (e.g. 1.7.10 Forge, 1.12.2 Forge, 1.16.5 Forge, 1.20.1 NeoForge, 1.20.4 NeoForge, 1.21.1 Forge, 1.21.11 Fabric, 26.x Vanilla, Lunar sample) | yes, `#[ignore]`, run on demand/CI schedule |
 | Reproducibility | two generations from the same lock are byte-identical | yes |
 
 Quality gates (`scripts/check.sh`): `cargo fmt --check`, `cargo clippy --locked --all-targets -- -D warnings`, `cargo test --locked`.

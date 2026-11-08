@@ -4,9 +4,9 @@
 
 | Namespace | Example class | Example member | Origin |
 | --- | --- | --- | --- |
-| `official` | `fud` | `a` | obfuscated client jar |
+| `official` | `gfj` (1.21.11) | `a` | obfuscated client jar |
 | `intermediary` | `net/minecraft/class_310` | `method_1551` | Fabric Intermediary |
-| `srg` | `net/minecraft/client/Minecraft` (MCP class names ≤ 1.16.5, Mojang class names ≥ 1.17) | `func_71410_x` (≤ 1.16.5), `m_91087_` (≥ 1.17) | MCP / MCPConfig |
+| `srg` | `net/minecraft/client/Minecraft` (MCP class names ≤ 1.16.5), `net/minecraft/src/C_3391_` (id names ≥ 1.17) | `func_71410_x` (≤ 1.16.5), `m_91087_` (≥ 1.17) | MCP / MCPConfig |
 | `mcp` | `net/minecraft/client/Minecraft` | `getMinecraft` | MCP CSV over `srg` |
 | `mojang` | `net/minecraft/client/Minecraft` | `getInstance` | Mojang ProGuard / unobfuscated jar |
 | `yarn` | `net/minecraft/client/MinecraftClient` | `getInstance` | Yarn |
@@ -16,7 +16,9 @@
 
 ## Expected runtime namespace
 
-This table is the **hypothesis** to be confirmed by the validation ticket and the detector.
+Validated against upstream artifacts (2026-11-08); one proof per row, with hashes, in
+[evidence/runtime-namespaces.md](evidence/runtime-namespaces.md). Versions are the expected result;
+the code derives each row from the install profile or loader metadata, not from these bounds.
 Any disagreement found by detection updates this table; the detector's verdict wins.
 
 | Launcher | Loader | Versions | Classes | Members |
@@ -26,9 +28,10 @@ Any disagreement found by detection updates this table; the detector's verdict w
 | official | fabric, quilt | ≤ 1.21.11 | `intermediary` | `intermediary` |
 | official | fabric, quilt | ≥ 26.1 | `mojang` | `mojang` |
 | official | forge | 1.7.10 → 1.16.5 | `srg` (MCP class names) | `srg` (`func_`/`field_`) |
-| official | forge | 1.17 → per install profile | `srg` (= Mojang class names) | `srg` (`m_`/`f_`) |
-| official | forge, neoforge | when install profile declares Mojang runtime | `mojang` | `mojang` |
-| official | neoforge | 1.20.1 → 1.20.4 | `srg` | `srg` |
+| official | forge | 1.17 → 1.20.4 | `mojang` | `srg` (`m_`/`f_`) |
+| official | forge | ≥ 1.20.6 (no 1.20.5 build) | `mojang` | `mojang` |
+| official | neoforge | 1.20.1 (`net.neoforged:forge`) | `mojang` | `srg` (`m_`/`f_`) |
+| official | neoforge | ≥ 1.20.2 (`net.neoforged:neoforge`) | `mojang` | `mojang` |
 | lunar | any | any | detected | detected |
 
 A configuration may mix namespaces (classes from one, members from another); the model handles
@@ -37,11 +40,30 @@ class and member namespaces independently.
 ## Derivation for official launcher
 
 For Forge and NeoForge, the runtime namespace is read from the installer's
-`install_profile.json` (data entries and processor arguments referencing MCP/MCPConfig or
-Mojang mappings). No processor is executed.
+`install_profile.json`, client-side processors only. No processor is executed.
 
-For Fabric and Quilt, the runtime namespace is the one declared by the loader metadata
-(Intermediary artifact present → `intermediary`; absent for an unobfuscated version → `mojang`).
+| Install profile shows | Classes | Members |
+| --- | --- | --- |
+| Legacy profile or `spec: 0` without processors (FML `deobfuscation_data-*.lzma`) | `srg` | `srg` |
+| `SpecialSource --srg-in {MAPPINGS}` with `MAPPINGS` from `mcp_config` | `srg` | `srg` |
+| `MERGE_MAPPING ... --classes` (no `--fields`/`--methods`) | `mojang` | `srg` |
+| `MERGE_MAPPING ... --classes --fields --methods` | `mojang` | `mojang` |
+| Rename `--names {MOJMAPS}`, or `PROCESS_MINECRAFT_JAR` (with or without `--input-mappings {MOJMAPS}`) | `mojang` | `mojang` |
+| Only `binarypatcher` (no merge or rename), unobfuscated version (Forge 26.x) | `mojang` | `mojang` |
+| Anything else | error `unknown install profile` | |
+
+The `MERGE_MAPPING` output is then applied by the rename tool, whose flag varies by build
+(`vignette --mappings` in 1.17.x, `ForgeAutoRenamingTool`/`AutoRenamingTool --names` later); only
+the merge flags decide the namespaces. The presence of a `MAPPINGS`/`mcp_config` data entry alone is
+not a signal: Forge 1.20.6 and 1.21 still declare it without using it for the rename.
+
+For Fabric and Quilt, the runtime namespace is the one declared by the loader metadata:
+the launch profile lists a real Intermediary artifact → `intermediary`; no Intermediary library
+for an unobfuscated version → `mojang`. Fabric Meta lists 26.x Intermediary entries pointing to the
+placeholder `net.fabricmc:intermediary:0.0.0`; these count as absent. Quilt Loader targets
+`intermediary` too; its `org.quiltmc:hashed` library is on the classpath but not used as the runtime
+namespace. Quilt accepts a user override (`loader.experimental.minecraft.targetNamespace`); the
+detector catches such setups.
 
 ## Detection (Lunar and verification)
 
@@ -58,6 +80,10 @@ Candidates: every namespace available for that Minecraft version.
    descriptor multiset, string constants hash) against the `official` jar. Accepted only for
    unique matches; the rest is reported as unmatched.
 4. **Proof.** The verdict, scores and unmatched counts are written to the provenance record.
+
+Lunar remaps the game at launch with its own mappings (`lunar-platform-mappings-v<mc>.jar`,
+proprietary `.kin` files: `intermediary`, `lunar2intermediary`, `lunar_named`), so the
+Lunar runtime namespace is never derived statically.
 
 Lunar-specific (non-Minecraft) classes are exported in their runtime names; when the Lunar
 Mapping Project publishes mappings for the exact jar hash, they are added as the `lunar` namespace.
