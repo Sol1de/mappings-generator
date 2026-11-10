@@ -742,6 +742,17 @@ mod tests {
     }
 
     #[test]
+    fn shipped_catalogs_are_valid() {
+        for text in [
+            include_str!("../../consumers/mc_mappings/catalog-v1.json"),
+            include_str!("../../consumers/mc_mappings/catalog-v2-common.json"),
+        ] {
+            let c: Catalog = serde_json::from_str(text).unwrap();
+            assert_eq!(c.validate(), Vec::<String>::new());
+        }
+    }
+
+    #[test]
     fn runtime_only_classes_stay_external() {
         // A Lunar cache also lists library classes, known by their runtime name only.
         let mut lunar = file("lunar", "lunar", "1.21", false);
