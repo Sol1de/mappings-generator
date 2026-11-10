@@ -1,0 +1,10 @@
+{
+  "exclude": [
+    {
+      "minecraft_version": "1.16.2",
+      "launcher": "official",
+      "loader": "forge",
+      "reason": "MCPConfig 1.16.2-20200812.004259 gives the same SRG name func_241122_a_ to two synthetic lambdas of ServerWorld (official a and b, descriptor (Laag;Lfx;)V): runtime names cannot be exact"
+    }
+  ]
+}

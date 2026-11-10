@@ -28,22 +28,37 @@ readers/writers passed in.
 
 ## Extension points
 
-- `Provider` trait: availability (`versions()`, `builds(version)`) and artifacts for a
-  configuration. A new loader = a new provider + an era entry.
-- `Era` table: per (loader, version range resolved from availability) → sources to load and
-  runtime-derivation rule. New naming eras are data, not pipeline changes.
-- Format `Reader`/`Writer` traits.
+Providers are modules of plain functions under `src/sources/` (availability, builds, artifacts);
+the per-configuration rules are one `match` in `pipeline::generate` (`src/pipeline/mod.rs`), and
+the matrix is assembled in `pipeline::matrix`. Era boundaries are not listed anywhere: they follow
+from what each upstream artifact contains (client_mappings, launch profile libraries,
+install_profile processors), see [namespaces.md](namespaces.md).
+
+To add a loader:
+
+1. Add its provider in `src/sources/` (builds per version, default build, launch metadata) and its
+   name to `App::resolve` in `main.rs`.
+2. Add its matrix entries in `pipeline::matrix` (only versions its metadata declares).
+3. Add its arm in `pipeline::generate`: the evidence that decides the runtime namespaces, and the
+   extra mapping sources to merge, if any.
+4. Record one proof per era in `spec/evidence/runtime-namespaces.md`, add an integration test
+   case in `tests/integration.rs`, update `spec/namespaces.md` and `spec/scope.md`.
+
+To add an era of an existing loader (a new install-profile shape, a new mapping format): extend the
+derivation rule (e.g. `sources::forge::derive_runtime`) or add a reader in `src/formats/` with
+synthetic fixtures, then the same evidence and tests. An unknown shape fails explicitly
+(`unknown install profile`), never falls back.
 
 ## Main dependencies
 
-`clap` (CLI), `serde` + `serde_json`, `ureq` with rustls (blocking HTTP) + `rayon` (parallelism),
-`zip`, `sha1` + `sha2`, `quick-xml` (Maven metadata), `directories` (cache path),
-`thiserror` (module errors), `anyhow` (`main.rs`), `tracing` + `tracing-subscriber`, `indicatif`
-(progress), `flate2` (gzip). Tests: `insta`, `tempfile`. No async runtime, no JVM.
+`clap` (CLI), `serde` + `serde_json`, `ureq` with rustls (blocking HTTP), `rayon` (parallelism),
+`zip` (deflate only), `sha1` + `sha2`, `flate2` (gzip).
+Maven metadata is read with a few lines of string parsing; progress goes to stderr with
+`eprintln!`. Tests: `jsonschema` (schema validation), `tempfile`. No async runtime, no JVM.
 
 ## Errors
 
-Modules expose typed errors (`thiserror`) carrying context (configuration, artifact,
+Modules expose typed errors (plain enums and structs implementing `Error`) carrying context (configuration, artifact,
 line number, symbol). No panic on bad input. The CLI maps them to the exit codes in [cli.md](cli.md).
 
 ## Testing
@@ -51,8 +66,8 @@ line number, symbol). No panic on bad input. The CLI maps them to the exit codes
 | Level | Content | Network |
 | --- | --- | --- |
 | Unit | parsers, descriptors, model operations, classfile parser on generated class files | no |
-| Snapshot | small synthetic configurations end-to-end (`insta`) | no |
-| Integration | one representative configuration per era and loader (e.g. 1.7.10 Forge, 1.12.2 Forge, 1.16.5 Forge, 1.20.1 NeoForge, 1.21.11 Fabric, 26.x Vanilla, Lunar sample) | yes, `#[ignore]`, run on demand/CI schedule |
+| CLI | commands, exit codes and the mc-mappings export on synthetic fixtures (`tests/cli.rs`); outputs validated against the embedded schema | no |
+| Integration | one representative configuration per era and loader (1.7.10, 1.12.2, 1.13.2, 1.16.5, 1.20.1, 1.21.1, 1.21.11 Forge; 1.20.1, 1.20.4 NeoForge; 1.14.4, 1.21.11, 26.1 Fabric; 1.20.1 Quilt; 1.8.9, 1.21.11, 26.1 Vanilla; Lunar sample) (`tests/integration.rs`) | yes, `#[ignore]`, `cargo test --release -- --ignored` |
 | Reproducibility | two generations from the same lock are byte-identical | yes |
 
 Quality gates (`scripts/check.sh`): `cargo fmt --check`, `cargo clippy --locked --all-targets -- -D warnings`, `cargo test --locked`.

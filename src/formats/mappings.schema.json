@@ -1,0 +1,130 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mc-mappings-generator.invalid/schema/mappings-1.json",
+  "title": "mc_mappings_generator output, format mappings version 1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["format", "format_version", "configuration", "namespaces", "aliases", "classes", "provenance"],
+  "properties": {
+    "format": { "const": "mappings" },
+    "format_version": { "const": 1 },
+    "configuration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["minecraft_version", "launcher", "loader"],
+      "properties": {
+        "minecraft_version": { "type": "string", "minLength": 1 },
+        "launcher": { "enum": ["official", "lunar"] },
+        "loader": { "enum": ["vanilla", "fabric", "quilt", "forge", "neoforge", "lunar"] },
+        "loader_version": { "type": "string", "minLength": 1 }
+      }
+    },
+    "namespaces": {
+      "type": "array",
+      "prefixItems": [{ "const": "runtime" }],
+      "items": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "aliases": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["runtime"],
+      "properties": {
+        "runtime": {
+          "oneOf": [
+            { "$ref": "#/$defs/namespace" },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["classes", "members"],
+              "properties": { "classes": { "$ref": "#/$defs/namespace" }, "members": { "$ref": "#/$defs/namespace" } }
+            }
+          ]
+        },
+        "named": { "$ref": "#/$defs/namespace" }
+      }
+    },
+    "classes": { "type": "array", "items": { "$ref": "#/$defs/class" } },
+    "provenance": {
+      "type": "object",
+      "required": ["generator", "sources", "runtime_detection", "verification", "coverage"],
+      "properties": {
+        "generator": { "type": "string" },
+        "sources": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "url", "sha256", "license"],
+            "properties": {
+              "id": { "type": "string" },
+              "url": { "type": "string" },
+              "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+              "size": { "type": "integer", "minimum": 0 },
+              "license": { "type": "string" }
+            }
+          }
+        },
+        "runtime_detection": {
+          "type": "object",
+          "required": ["method", "classes", "members"],
+          "properties": {
+            "method": { "enum": ["derived", "detected"] },
+            "classes": { "$ref": "#/$defs/namespace" },
+            "members": { "$ref": "#/$defs/namespace" }
+          }
+        },
+        "verification": {
+          "type": "object",
+          "required": ["errors", "warnings"],
+          "properties": { "errors": { "const": 0 }, "warnings": { "type": "integer", "minimum": 0 } }
+        },
+        "coverage": {
+          "type": "object",
+          "required": ["classes", "fields", "methods"],
+          "properties": {
+            "classes": { "$ref": "#/$defs/ratio" },
+            "fields": { "$ref": "#/$defs/ratio" },
+            "methods": { "$ref": "#/$defs/ratio" }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "namespace": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+    "ratio": { "type": "number", "minimum": 0, "maximum": 1 },
+    "names": {
+      "type": "object",
+      "required": ["runtime"],
+      "minProperties": 1,
+      "additionalProperties": { "type": "string", "minLength": 1 }
+    },
+    "access": { "type": "integer", "minimum": 0, "maximum": 65535 },
+    "class_name": { "type": "string", "pattern": "^[^.;\\[\\s/]+(/[^.;\\[\\s/]+)*$" },
+    "member": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["names", "descriptor", "static"],
+      "properties": {
+        "names": { "$ref": "#/$defs/names" },
+        "descriptor": { "type": "string", "minLength": 1 },
+        "access": { "$ref": "#/$defs/access" },
+        "static": { "type": "boolean" }
+      }
+    },
+    "class": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["names", "interfaces", "fields", "methods"],
+      "properties": {
+        "names": { "$ref": "#/$defs/names" },
+        "access": { "$ref": "#/$defs/access" },
+        "super": { "$ref": "#/$defs/class_name" },
+        "interfaces": { "type": "array", "items": { "$ref": "#/$defs/class_name" } },
+        "fields": { "type": "array", "items": { "$ref": "#/$defs/member" } },
+        "methods": { "type": "array", "items": { "$ref": "#/$defs/member" } }
+      }
+    }
+  }
+}
