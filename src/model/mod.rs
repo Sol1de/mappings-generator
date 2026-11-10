@@ -551,6 +551,21 @@ impl MappingSet {
         conflicts
     }
 
+    /// Fills missing names of namespace `ns` with those of namespace `from`.
+    pub fn fill_from(&mut self, ns: usize, from: usize) {
+        let fill = |names: &mut Names| {
+            if names[ns].is_none() {
+                names[ns] = names[from].clone();
+            }
+        };
+        for class in self.classes.values_mut() {
+            fill(&mut class.names);
+            for m in class.fields.values_mut().chain(class.methods.values_mut()) {
+                fill(&mut m.names);
+            }
+        }
+    }
+
     /// Fills missing names of namespace `ns` from `ns0` according to `policy`.
     pub fn complete(&mut self, ns: usize, policy: Complete) {
         let fill = |names: &mut Names, special: bool| {
@@ -767,6 +782,33 @@ mod tests {
         s.complete(1, Complete::Remap);
         assert_eq!(s.classes["c"].names[1].as_deref(), Some("c"));
         assert!(s.validate().is_empty(), "{:?}", s.validate());
+    }
+
+    #[test]
+    fn fill_from_keeps_existing_names() {
+        let mut s = sample();
+        s.add_namespace("srg");
+        s.set_member_name("a", Kind::Method, ("d", "([[Lb;I)La;"), 2, "func_1")
+            .unwrap();
+        s.set_member_name("a", Kind::Field, ("c", "Lb;"), 2, "field_1")
+            .unwrap();
+        s.classes
+            .get_mut("a")
+            .unwrap()
+            .fields
+            .get_mut(&MemberKey::new("c", "Lb;"))
+            .unwrap()
+            .names[1] = None;
+        s.fill_from(1, 2);
+        let a = &s.classes["a"];
+        assert_eq!(
+            a.fields[&MemberKey::new("c", "Lb;")].names[1].as_deref(),
+            Some("field_1")
+        );
+        assert_eq!(
+            a.methods[&MemberKey::new("d", "([[Lb;I)La;")].names[1].as_deref(),
+            Some("find")
+        );
     }
 
     #[test]

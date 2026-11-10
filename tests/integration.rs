@@ -53,15 +53,20 @@ fn every_era_and_loader_generates_without_verification_errors() {
 #[ignore = "network and a local Lunar capture (`scan` after launching Lunar)"]
 fn lunar_sample() {
     let out = tempfile::tempdir().unwrap();
-    for module in ["fabric", "lunar"] {
+    // Modern version with each module, plus the legacy one (1.8.9 offers no Fabric module).
+    for (version, module) in [
+        ("1.21.11", "fabric"),
+        ("1.21.11", "lunar"),
+        ("1.8.9", "lunar"),
+    ] {
         let o = generate(
             out.path(),
             &[],
-            &["-v", "1.21.11", "--launcher", "lunar", "-l", module],
+            &["-v", version, "--launcher", "lunar", "-l", module],
         );
         assert!(
             o.status.success(),
-            "{module}: {}",
+            "{version} {module}: {}",
             String::from_utf8_lossy(&o.stderr)
         );
     }
