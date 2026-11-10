@@ -303,72 +303,6 @@ impl MappingSet {
         }
     }
 
-    #[allow(dead_code)] // model operation of the spec; no current era needs it
-    /// `self: X→Y`, `other: Y→Z` (keyed by Y): adds `other`'s namespaces to `self` through
-    /// the shared namespace `y`. Entries whose `y` name is unknown to `other` are returned.
-    pub fn compose(&mut self, other: &MappingSet) -> Result<Vec<String>, String> {
-        let y_name = &other.namespaces[0];
-        let y = self
-            .ns(y_name)
-            .ok_or_else(|| format!("shared namespace {y_name} missing"))?;
-        let index: Vec<usize> = other
-            .namespaces
-            .iter()
-            .map(|n| self.add_namespace(n))
-            .collect();
-        let y_map: HashMap<String, String> = self
-            .class_map(y)
-            .into_iter()
-            .map(|(k, v)| (k.to_owned(), v.to_owned()))
-            .collect();
-        let mut losses = Vec::new();
-        for (key, class) in &mut self.classes {
-            let Some(y_class) = class.names[y].clone() else {
-                continue;
-            };
-            let Some(theirs) = other.classes.get(&y_class) else {
-                losses.push(format!("class {key} ({y_class})"));
-                continue;
-            };
-            for (i, n) in theirs.names.iter().enumerate().skip(1) {
-                if class.names[index[i]].is_none() {
-                    class.names[index[i]].clone_from(n);
-                }
-            }
-            for kind in [Kind::Field, Kind::Method] {
-                for (mk, m) in class.members_mut(kind) {
-                    let Some(y_member) = m.names[y].clone() else {
-                        continue;
-                    };
-                    let y_desc = remap_descriptor(&mk.desc, |n| y_map.get(n).map(String::as_str));
-                    let found = theirs
-                        .members(kind)
-                        .get(&MemberKey::new(&y_member, &y_desc))
-                        .or_else(|| {
-                            // Fields from descriptor-less sources are keyed with an empty descriptor.
-                            (kind == Kind::Field)
-                                .then(|| theirs.fields.get(&MemberKey::new(&y_member, "")))
-                                .flatten()
-                        });
-                    match found {
-                        Some(t) => {
-                            for (i, n) in t.names.iter().enumerate().skip(1) {
-                                if m.names[index[i]].is_none() {
-                                    m.names[index[i]].clone_from(n);
-                                }
-                            }
-                        }
-                        None => losses.push(format!(
-                            "{kind:?} {key}.{}{} ({y_member})",
-                            mk.name, mk.desc
-                        )),
-                    }
-                }
-            }
-        }
-        Ok(losses)
-    }
-
     /// Re-keys the set by namespace `name`. Symbols without a name there are returned as losses.
     pub fn reorder(&self, name: &str) -> Result<(MappingSet, Vec<String>), String> {
         let ns = self
@@ -701,28 +635,6 @@ mod tests {
                 .contains_key(&MemberKey::new("<init>", "()V"))
         );
         assert_eq!(r.namespaces, ["named", "official"]);
-    }
-
-    #[test]
-    fn compose_with_holes_reports_losses() {
-        let mut xy = MappingSet::new(&["official", "srg"]);
-        xy.set_class_name("a", 1, "C_1_").unwrap();
-        xy.set_class_name("b", 1, "C_2_").unwrap();
-        xy.set_member_name("a", Kind::Method, ("d", "(Lb;)V"), 1, "m_1_")
-            .unwrap();
-        xy.set_member_name("a", Kind::Method, ("e", "()V"), 1, "m_2_")
-            .unwrap();
-        let mut yz = MappingSet::new(&["srg", "mcp"]);
-        yz.set_class_name("C_1_", 1, "Client").unwrap();
-        yz.set_member_name("C_1_", Kind::Method, ("m_1_", "(LC_2_;)V"), 1, "tick")
-            .unwrap();
-        let losses = xy.compose(&yz).unwrap();
-        assert_eq!(losses.len(), 2, "{losses:?}");
-        let mcp = xy.ns("mcp").unwrap();
-        assert_eq!(
-            xy.classes["a"].methods[&MemberKey::new("d", "(Lb;)V")].names[mcp].as_deref(),
-            Some("tick")
-        );
     }
 
     #[test]

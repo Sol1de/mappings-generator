@@ -8,7 +8,6 @@
 | Tiny v1 | older Intermediary/Yarn artifacts | |
 | Tiny v2 | Intermediary, Yarn, Lunar Mapping Project | escapes, properties, comments, params ignored |
 | SRG | MCP 1.7.10 → 1.12.2 (`joined.srg`) | `PK`/`CL`/`FD`/`MD` lines |
-| CSRG | where published | |
 | TSRG / TSRG2 | MCPConfig (`joined.tsrg`) | TSRG2: multiple namespaces, `static` markers, ids |
 | MCP CSV | `fields.csv`, `methods.csv` | `searge → name` |
 
