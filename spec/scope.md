@@ -61,5 +61,5 @@ Lunar metadata requests; the generated mappings are platform-independent.
 - Parameter names, local variables and Javadoc (possible later extension via Parchment/Yarn).
 - Resolvers and consumer logic. The one consumer conversion shipped, `mc-mappings`, is a
   downstream transformation of the JSON output ([formats.md](formats.md#mc-mappings-dataset)).
-- Tiny v2 output (possible later version, converted from the JSON output).
+- Other output formats than JSON and its Tiny v2 conversion.
 - Graphical interface: the CLI is the only interface.
