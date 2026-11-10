@@ -34,6 +34,15 @@ Any disagreement found by detection updates this table; the detector's verdict w
 | official | neoforge | ≥ 1.20.2 (`net.neoforged:neoforge`) | `mojang` | `mojang` |
 | lunar | any | any | detected | detected |
 
+Detected so far (2026-11-10, Lunar launcher 3.7.34, proofs in the evidence file):
+
+| Launcher | Module | Versions | Classes | Members |
+| --- | --- | --- | --- | --- |
+| lunar | lunar (no loader) | 1.21, 1.21.11 | `mojang` | `mojang` |
+| lunar | fabric | 1.21, 1.21.11 | `intermediary` | `intermediary` |
+
+The Lunar module without a loader is therefore not the standard Vanilla runtime (`official`).
+
 A configuration may mix namespaces (classes from one, members from another); the model handles
 class and member namespaces independently.
 
@@ -48,6 +57,7 @@ For Forge and NeoForge, the runtime namespace is read from the installer's
 | `SpecialSource --srg-in {MAPPINGS}` with `MAPPINGS` from `mcp_config` | `srg` | `srg` |
 | `MERGE_MAPPING ... --classes` (no `--fields`/`--methods`) | `mojang` | `srg` |
 | `MERGE_MAPPING ... --classes --fields --methods` | `mojang` | `mojang` |
+| `MERGE_MAPPING --merge {MAPPINGS} --base {MOJMAPS}` (installertools 3.x, NeoForge ≥ 1.21.6; NeoForm tables are identity, `official: true`) | `mojang` | `mojang` |
 | Rename `--names {MOJMAPS}`, or `PROCESS_MINECRAFT_JAR` (with or without `--input-mappings {MOJMAPS}`) | `mojang` | `mojang` |
 | Only `binarypatcher` (no merge or rename), unobfuscated version (Forge 26.x) | `mojang` | `mojang` |
 | Anything else | error `unknown install profile` | |
@@ -70,11 +80,12 @@ detector catches such setups.
 Input: the set of classes and members present in the runtime classpath jars of a configuration.
 Candidates: every namespace available for that Minecraft version.
 
-1. **Classes.** For each candidate, score = share of the candidate's `net/minecraft` classes found
-   by exact name in the runtime jars. Select the candidate with score ≥ 0.98 that beats the
-   second best by ≥ 0.10. Otherwise: `ambiguous` error.
-2. **Members.** Same scoring on members of the classes matched at step 1, comparing name and
-   descriptor remapped into the candidate namespace.
+1. **Classes.** Only game classes found in the runtime jars under at least one candidate name are
+   evidence (a runtime cache such as Lunar's does not contain every class). For each candidate,
+   score = share of those classes found under the candidate's name. Select the candidate with
+   score ≥ 0.98 that beats the second best by ≥ 0.10. Otherwise: `ambiguous` error.
+2. **Members.** Same scoring on members of the classes matched at step 1 that are found under
+   some candidate name, comparing name and descriptor remapped into the class namespace.
 3. **Structural fallback.** If no candidate reaches the threshold (repackaged or renamed classes),
    match classes by structural fingerprint (super class, interface count, field/method
    descriptor multiset, string constants hash) against the `official` jar. Accepted only for
@@ -83,7 +94,15 @@ Candidates: every namespace available for that Minecraft version.
 
 Lunar remaps the game at launch with its own mappings (`lunar-platform-mappings-v<mc>.jar`,
 proprietary `.kin` files: `intermediary`, `lunar2intermediary`, `lunar_named`), so the
-Lunar runtime namespace is never derived statically.
+Lunar runtime namespace is never derived statically. The runtime jars are Lunar's class cache
+(`offline/multiver/cache/<a>/<b>/bake.zip`, entries named `a.b.C`), written at launch after
+Lunar's transformations (see [sources.md](sources.md#lunar-metadata)).
+
+Game classes absent from that cache, and game members Lunar removed or changed while
+transforming the game (missing under their mapped name and descriptor), do not exist at runtime
+as mapped: they are not exported and are listed in the report
+(`not_exported_absent_at_runtime`, `members_not_exported_absent_at_runtime`). The runtime
+variants of changed members are exported under their runtime names only.
 
 Lunar-specific (non-Minecraft) classes are exported in their runtime names; when the Lunar
 Mapping Project publishes mappings for the exact jar hash, they are added as the `lunar` namespace.

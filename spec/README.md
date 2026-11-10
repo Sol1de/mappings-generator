@@ -6,7 +6,8 @@ possible between the names **loaded at runtime** and every other known namespace
 (obfuscated, intermediary, SRG, Mojang, MCP, Yarn...), for classes, fields and methods.
 
 The tool is independent of any consumer project. Adapting its output to a specific
-consumer (for example a semantic symbol catalog) is a separate, downstream transformation.
+consumer (for example a semantic symbol catalog) is a separate, downstream transformation; the
+`mc-mappings` command and `consumers/mc_mappings/` provide the one for mc-mappings.
 
 ## Documents
 

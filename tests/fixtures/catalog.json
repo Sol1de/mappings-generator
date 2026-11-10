@@ -1,0 +1,15 @@
+{
+  "format": "mc_mappings_catalog",
+  "format_version": 1,
+  "classes": [
+    { "id": "minecraft.client", "mojang": "net/minecraft/client/Minecraft" },
+    { "id": "minecraft.local_player", "mojang": "net/minecraft/client/player/LocalPlayer" }
+  ],
+  "fields": [
+    { "id": "minecraft.client.player", "owner": "minecraft.client", "mojang": "player", "type": { "kind": "class", "id": "minecraft.local_player" } }
+  ],
+  "methods": [
+    { "id": "minecraft.client.get_instance", "owner": "minecraft.client", "mojang": "getInstance", "parameters": [], "returns": { "kind": "class", "id": "minecraft.client" } },
+    { "id": "minecraft.local_player.get_health", "owner": "minecraft.local_player", "mojang": "getHealth", "parameters": [], "returns": { "kind": "primitive", "name": "float" } }
+  ]
+}

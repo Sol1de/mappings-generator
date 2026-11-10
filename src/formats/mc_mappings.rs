@@ -546,6 +546,30 @@ pub fn export(
     if !errors.is_empty() {
         return Err(errors);
     }
+    // Name each profile after every configuration that uses it, so a shared table never looks
+    // specific to one launcher.
+    for p in &mut profiles {
+        let users: Vec<String> = configurations
+            .iter()
+            .filter(|c| c.profile_id == p.profile_id)
+            .map(|c| {
+                format!(
+                    "mc{}_{}_{}",
+                    c.minecraft_version.replace(['.', '-'], "_"),
+                    c.launcher,
+                    c.loader
+                )
+            })
+            .collect();
+        let new_id = users.join(".");
+        for c in configurations
+            .iter_mut()
+            .filter(|c| c.profile_id == p.profile_id)
+        {
+            c.profile_id.clone_from(&new_id);
+        }
+        p.profile_id = new_id;
+    }
     profiles.sort_by(|a, b| a.profile_id.cmp(&b.profile_id));
     Ok(Dataset {
         schema_version: 1,
@@ -636,7 +660,7 @@ mod tests {
             .unwrap();
         assert_eq!(
             (lunar.loader.as_str(), lunar.profile_id.as_str()),
-            ("none", "mc1_21.lunar.none")
+            ("none", "mc1_21_lunar_none.mc1_21_standard_none")
         );
         let vanilla = d
             .configurations
@@ -644,13 +668,13 @@ mod tests {
             .find(|c| c.loader == "none" && c.launcher == "standard")
             .unwrap();
         assert_eq!(
-            vanilla.profile_id, "mc1_21.lunar.none",
+            vanilla.profile_id, "mc1_21_lunar_none.mc1_21_standard_none",
             "identical tables are shared"
         );
         let p = d
             .profiles
             .iter()
-            .find(|p| p.profile_id == "mc1_21.lunar.none")
+            .find(|p| p.profile_id == "mc1_21_lunar_none.mc1_21_standard_none")
             .unwrap();
         let tick = p
             .methods
@@ -669,7 +693,7 @@ mod tests {
         let forge = d
             .profiles
             .iter()
-            .find(|p| p.profile_id == "mc1_21.standard.forge")
+            .find(|p| p.profile_id == "mc1_21_standard_forge")
             .unwrap();
         assert_eq!(
             forge.classes[0].runtime_name,

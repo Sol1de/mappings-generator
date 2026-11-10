@@ -117,7 +117,7 @@ impl Class {
         }
     }
 
-    fn members_mut(&mut self, kind: Kind) -> &mut BTreeMap<MemberKey, Member> {
+    pub fn members_mut(&mut self, kind: Kind) -> &mut BTreeMap<MemberKey, Member> {
         match kind {
             Kind::Field => &mut self.fields,
             Kind::Method => &mut self.methods,
@@ -450,6 +450,8 @@ impl MappingSet {
                     [(n, d, _)] if !class.fields.contains_key(&MemberKey::new(n, d)) => {
                         class.fields.insert(MemberKey::new(n, d), member);
                     }
+                    // Not in this jar (e.g. a server-only field of a joined table): not a symbol here.
+                    [] => {}
                     _ => problems.push(format!(
                         "field {name}.{}: {} candidates in jar",
                         key.name,
