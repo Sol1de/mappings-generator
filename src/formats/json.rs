@@ -341,4 +341,46 @@ mod tests {
         };
         assert!(write(&e, false, Vec::new()).is_err());
     }
+
+    #[test]
+    fn output_matches_the_embedded_schema() {
+        let set = sample_set();
+        let cfg = Configuration {
+            minecraft_version: "1.21.11".into(),
+            launcher: "official".into(),
+            loader: "forge".into(),
+            loader_version: Some("1.21.11-61.2.4".into()),
+        };
+        let prov = serde_json::json!({
+            "generator": "test",
+            "sources": [{ "id": "x", "url": "u", "size": 1, "sha256": "0".repeat(64), "license": "CC0-1.0" }],
+            "runtime_detection": { "method": "derived", "classes": "mojang", "members": "intermediary" },
+            "verification": { "errors": 0, "warnings": 2 },
+            "coverage": { "classes": 1.0, "fields": 0.5, "methods": 1.0 }
+        });
+        // Mixed runtime namespaces (classes and members from different namespaces).
+        let e = Export {
+            configuration: &cfg,
+            set: &set,
+            runtime: Runtime {
+                classes: 2,
+                members: 1,
+            },
+            named: Some(2),
+            exported: vec![0, 1, 2],
+            provenance: &prov,
+            omit: &[],
+        };
+        let mut out = Vec::new();
+        write(&e, true, &mut out).unwrap();
+        let value: serde_json::Value = serde_json::from_slice(&out).unwrap();
+        let schema: serde_json::Value = serde_json::from_str(SCHEMA).unwrap();
+        let validator = jsonschema::validator_for(&schema).unwrap();
+        let errors: Vec<String> = validator
+            .iter_errors(&value)
+            .map(|e| e.to_string())
+            .collect();
+        assert!(errors.is_empty(), "{errors:?}");
+        assert_eq!(value["aliases"]["runtime"]["classes"], "mojang");
+    }
 }

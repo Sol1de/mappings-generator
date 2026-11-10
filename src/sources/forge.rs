@@ -231,7 +231,15 @@ pub fn derive_runtime(
     if processors.is_empty() && profile["spec"] == 0 {
         return Ok(("srg", "srg"));
     }
+    let pair = |args: &[&str], flag: &str, value: &str| {
+        args.windows(2).any(|w| w[0] == flag && w[1] == value)
+    };
     if let Some(merge) = processors.iter().find(|a| has(a, "MERGE_MAPPING")) {
+        // installertools 3.x: `--merge {MAPPINGS} --base {MOJMAPS}`; NeoForm tables are then
+        // identity (`official: true`), so every name comes from the Mojang base.
+        if pair(merge, "--base", "{MOJMAPS}") && !has(merge, "--classes") {
+            return Ok(("mojang", "mojang"));
+        }
         return match (
             has(merge, "--classes"),
             has(merge, "--fields") && has(merge, "--methods"),
@@ -241,9 +249,6 @@ pub fn derive_runtime(
             _ => Err("unknown install profile: MERGE_MAPPING without --classes".into()),
         };
     }
-    let pair = |args: &[&str], flag: &str, value: &str| {
-        args.windows(2).any(|w| w[0] == flag && w[1] == value)
-    };
     if processors.iter().any(|a| pair(a, "--srg-in", "{MAPPINGS}")) {
         return Ok(("srg", "srg"));
     }
@@ -363,6 +368,8 @@ mod tests {
         assert_eq!(derive_runtime(&p120).unwrap(), ("mojang", "srg"));
         let merged_all = json!({"spec": 1, "processors": [proc(&["--task", "MERGE_MAPPING", "--classes", "--fields", "--methods"])]});
         assert_eq!(derive_runtime(&merged_all).unwrap(), ("mojang", "mojang"));
+        let neo_3x = json!({"spec": 1, "processors": [proc(&["--task", "MERGE_MAPPING", "--merge", "{MAPPINGS}", "--base", "{MOJMAPS}", "--output", "{MERGED_MAPPINGS}", "--reverse-base"])]});
+        assert_eq!(derive_runtime(&neo_3x).unwrap(), ("mojang", "mojang"));
         let p121 = json!({"spec": 1, "processors": [
             {"sides": ["server"], "args": ["--srg-in", "{MAPPINGS}"]},
             proc(&["--task", "DOWNLOAD_MOJMAPS", "--output", "{MOJMAPS}"]),

@@ -51,10 +51,16 @@ above documents the expected result; proofs are in
 
 Lunar's launch API is undocumented and may change. Rules:
 
-- Prefer reading a local Lunar installation when present (`mc_mappings_generator scan`, see [cli.md](cli.md)).
-- The API client is isolated in its own provider; any response-shape change fails explicitly.
-- Requests send no account data, no hardware identifier and a generic user agent.
-- Downloaded jars stay in the local cache; nothing from Lunar is redistributed.
+- Lunar data comes from the local installation only (`mc_mappings_generator scan`, see
+  [cli.md](cli.md#local-installation-scan)): offered versions and modules are the ones launched
+  and captured there. Called without the launcher's installation and hardware identifiers,
+  `api.lunarclientprod.com/launcher/metadata` returns promotions only, no versions (checked
+  2026-11-10); sending those identifiers is forbidden here, so no API client is implemented.
+- The runtime classes are only produced by a launch (Lunar's class cache), so no remote source
+  could replace a local capture anyway.
+- Captured class caches stay in the local cache; nothing from Lunar is redistributed.
+- The Lunar Mapping Project's releases target Lunar 1.8.9 builds and Genesis 2.22.25 (project
+  README); none covers 1.21.x, so the optional `lunar` namespace is not produced for them.
 
 ## Licensing and redistribution
 

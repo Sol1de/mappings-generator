@@ -115,7 +115,9 @@ fn classpath_version(classpath: &[String]) -> Option<String> {
             .strip_prefix("lunar-platform-mappings-v")?
             .split(".jar")
             .next()?;
-        Some(v.replace('_', "."))
+        // `v1_21_0` names 1.21 (Mojang ids drop a zero patch).
+        let v = v.replace('_', ".");
+        Some(v.strip_suffix(".0").map_or(v.clone(), str::to_owned))
     })
 }
 
@@ -173,7 +175,7 @@ pub fn scan(cache: &Cache, dir: &Path) -> Result<Vec<Capture>> {
         let (sha, path) = cache.store_bytes(&bytes)?;
         let artifact = Artifact {
             id: "lunar.bake".into(),
-            url: format!("file:///{}", bake.display().to_string().replace('\\', "/")),
+            url: portable_url(&bake.display().to_string()),
             size: bytes.len() as u64,
             sha256: sha,
             license: LICENSE.into(),
@@ -198,6 +200,15 @@ pub fn scan(cache: &Cache, dir: &Path) -> Result<Vec<Capture>> {
         out.push(capture);
     }
     Ok(out)
+}
+
+/// `lunar:<path inside the Lunar directory>`: provenance must not carry machine paths.
+pub fn portable_url(path: &str) -> String {
+    let path = path.replace('\\', "/");
+    match path.find(".lunarclient/") {
+        Some(i) => format!("lunar:{}", &path[i + ".lunarclient/".len()..]),
+        None => path,
+    }
 }
 
 fn within(a: &str, b: &str, seconds: i64) -> bool {
@@ -241,6 +252,7 @@ pub fn captures(cache: &Cache) -> Result<Vec<Capture>> {
         let mut c: Capture = serde_json::from_value(value)
             .map_err(|err| SourceError::Format(format!("{}: {err}", e.path().display())))?;
         c.bake.path = cache.object_path(&c.bake.sha256);
+        c.bake.url = portable_url(&c.bake.url);
         out.push(c);
     }
     out.sort_by(|a, b| (&a.minecraft_version, &a.module).cmp(&(&b.minecraft_version, &b.module)));
@@ -285,7 +297,20 @@ mod tests {
             )
         );
         assert_eq!(classpath_version(&b.classpath).as_deref(), Some("1.21.11"));
+        assert_eq!(
+            classpath_version(&["lunar-platform-mappings-v1_21_0.jar with checksum 1".into()])
+                .as_deref(),
+            Some("1.21")
+        );
         assert!(within("17:06:45", "17:07:30", 120));
+        assert_eq!(
+            portable_url(r"file:///C:/Users/u/.lunarclient/offline/multiver/cache/a/b/bake.zip"),
+            "lunar:offline/multiver/cache/a/b/bake.zip"
+        );
+        assert_eq!(
+            portable_url(r"C:\Users\u\.lunarclient\x\bake.zip"),
+            "lunar:x/bake.zip"
+        );
         assert!(!within("17:06:45", "18:07:30", 120));
     }
 }

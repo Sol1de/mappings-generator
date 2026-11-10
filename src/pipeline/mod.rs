@@ -250,6 +250,10 @@ pub struct Report {
     /// Game classes missing from a runtime cache (Lunar): not exported, since unverifiable.
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub not_exported_absent_at_runtime: Vec<String>,
+    /// Game members a runtime cache (Lunar) lacks under their mapped name and descriptor:
+    /// removed or changed by the launcher's transformations, so not exported.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub members_not_exported_absent_at_runtime: Vec<String>,
 }
 
 pub struct Generated {
@@ -508,6 +512,7 @@ pub fn generate(cache: &Cache, base: &Base, cfg: &Configuration) -> Result<Gener
     // Coverage of the game's own symbols (before Lunar's classes are added).
     let (cov, gaps) = coverage(&set, named_of(&set));
     let mut absent_at_runtime = Vec::new();
+    let mut absent_members = Vec::new();
     let runtime_symbols = if let Some((inv, _)) = &runtime_jar {
         if ci != mi {
             return Err(gen_err(
@@ -522,6 +527,38 @@ pub fn generate(cache: &Cache, base: &Base, cfg: &Configuration) -> Result<Gener
             .filter_map(|c| c.names[ci].clone())
             .filter(|n| !inv.classes.contains_key(n))
             .collect();
+        // Members Lunar removed or changed while transforming the game do not exist at runtime:
+        // they are not exported either (the runtime variants are attached below).
+        let map: std::collections::HashMap<String, String> = set
+            .class_map(ci)
+            .into_iter()
+            .map(|(k, v)| (k.to_owned(), v.to_owned()))
+            .collect();
+        for c in set.classes.values_mut() {
+            let Some((rt_name, rt)) = c.names[ci]
+                .clone()
+                .and_then(|n| inv.classes.get(&n).map(|r| (n, r)))
+            else {
+                continue;
+            };
+            for kind in [Kind::Field, Kind::Method] {
+                let list = if kind == Kind::Field {
+                    &rt.fields
+                } else {
+                    &rt.methods
+                };
+                c.members_mut(kind).retain(|k, m| {
+                    let name = m.names[mi].as_deref().unwrap_or(&k.name);
+                    let desc =
+                        crate::model::remap_descriptor(&k.desc, |n| map.get(n).map(String::as_str));
+                    let keep = list.iter().any(|(n, d, _)| n == name && *d == desc);
+                    if !keep {
+                        absent_members.push(format!("{rt_name}.{name}{desc}"));
+                    }
+                    keep
+                });
+            }
+        }
         let symbols = verify::Symbols::from_jar(&inv.classes);
         let mut expected = verify::Symbols::from_set(&set, ci, mi, true);
         expected.0.retain(|k, _| inv.classes.contains_key(k));
@@ -560,6 +597,7 @@ pub fn generate(cache: &Cache, base: &Base, cfg: &Configuration) -> Result<Gener
         coverage_gaps: gaps,
         runtime_detection: detection.clone(),
         not_exported_absent_at_runtime: absent_at_runtime,
+        members_not_exported_absent_at_runtime: absent_members,
     };
     Ok(Generated {
         configuration,

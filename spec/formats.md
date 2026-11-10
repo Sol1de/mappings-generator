@@ -81,3 +81,46 @@ Rules:
 
 JSON is the only output format. Tiny v2 output is deferred to a later version (a conversion from
 the JSON output).
+
+Provenance keys are sorted alphabetically; `sources` lists every input (`id`, `url`, `size`,
+`sha256`, `license`). Lunar inputs use `lunar:<path inside .lunarclient>` URLs, never local paths.
+For Lunar configurations, `ns0` is the runtime namespace and Lunar's own classes and members are
+exported with their runtime names only.
+
+## Report (`.report.json`)
+
+One per configuration, written even when verification fails: `configuration`, `errors` (non-empty
+blocks the export), `warnings`, `pruned_not_in_client_jar` (symbols named by mapping sources but
+absent from the client jar, e.g. server-only), `coverage` and `coverage_gaps` (per kind, for the
+`named` namespace), `runtime_detection` (method, namespaces, evidence or detection scores) and, for
+Lunar, `not_exported_absent_at_runtime` / `members_not_exported_absent_at_runtime`.
+
+## mc-mappings dataset
+
+`mc-mappings` converts generated files into the mc-mappings table format (schema version 1,
+`mc_mappings/spec/table-format.md`). It is a downstream conversion: the `mappings` output above is
+unchanged.
+
+Input catalog (`format: "mc_mappings_catalog"`, `format_version: 1`):
+
+| Array | Entry |
+| --- | --- |
+| `classes` | `id`, `mojang` (internal name) |
+| `fields` | `id`, `owner` (class id), `mojang` (name), `type` (mc-mappings type object) |
+| `methods` | `id`, `owner`, `mojang`, `parameters`, `returns` (mc-mappings type objects) |
+
+Any entry may add `mojang_by_version` (`{ "<minecraft_version>": "<name>" }`) for symbols Mojang
+renamed (1.21.11: `ResourceLocation` → `Identifier`). Types reference classes by catalog id;
+`external` types must not name a mapped game class.
+
+For each input file: classes are found by Mojang name (the `mojang` names, or `runtime` when the
+runtime namespace is `mojang`); each member is looked up by Mojang name and runtime descriptor in
+its owner, then in its ancestors; the class that declares it must be a catalog class and becomes
+the record `owner`. `static` comes from the file. Any missing symbol, undeclared owner or two ids
+on one runtime member fails the export with every problem listed.
+
+Launchers map to `standard`/`lunar`, loaders to `none` (vanilla, Lunar module without loader),
+`fabric`, `forge`; other loaders are rejected. Configurations whose records are identical share one
+profile, named after all of them (`mc1_21_lunar_fabric.mc1_21_standard_fabric`). Output: the
+dataset (`--data-version` is its `data_version`) and `<name>.provenance.json` (catalog SHA-256 and,
+per input, file name, SHA-256, configuration and provenance). Same inputs give the same bytes.

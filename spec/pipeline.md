@@ -29,7 +29,16 @@ same version (jar inventory, base `MappingSet`) is computed once and reused.
 | Coverage: share of jar symbols with a `named` name, per kind | report |
 
 For the official launcher, the runtime jars are the client jar remapped into the runtime
-namespace (Forge/NeoForge patches are not applied). For Lunar, the actual Lunar classpath jars.
+namespace (Forge/NeoForge patches are not applied): the remapper keeps names its mappings do not
+cover, so a runtime name missing from the sources is the `ns0` name, after inherited method names
+were propagated. For Lunar, the runtime jar is Lunar's class cache; game symbols it lacks are not
+exported and are listed in the report ([namespaces.md](namespaces.md#detection-lunar-and-verification)).
+
+Symbols named by mapping sources but absent from the client jar (server-only classes of merged
+tables) are dropped before verification and counted in the report.
+
+`verify FILE` regenerates the file's configuration from the cache and checks every symbol of the
+file against its runtime jars, reporting wrong names, descriptors and static flags.
 
 ## Cache and integrity
 

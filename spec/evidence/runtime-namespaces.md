@@ -147,6 +147,46 @@ with ids (`a a 252363`): its `srg` column carries no names, everything comes fro
 - Observation: Lunar remaps the game at launch into a Lunar-specific namespace (bridged to
   intermediary for Fabric mods). Nothing static decides it; the row stays "detected".
 
+#### Detected on 2026-11-10 (Lunar launcher 3.7.34)
+
+Each configuration was launched once from the Lunar launcher, then captured with
+`mc_mappings_generator scan`. The runtime jar is Lunar's class cache (`bake.zip`, written after
+Lunar's transformations); its entries are class files named `a.b.C`. Classpath checksums are
+the ones Lunar logs in `ichor-boot.log`: `genesis-0.1.0-SNAPSHOT-all.jar` `a425c132`,
+`lunar.jar` `bc92bf50`, `lunar-platform-mappings-v1_21_0.jar` `bcd49680` (1.21),
+`lunar-platform-mappings-v1_21_11.jar` `302edf01` (1.21.11). Fabric module: loader 0.20.1.
+
+| Version | Module | Class cache SHA-256 | Class scores | Member scores | Verdict |
+| --- | --- | --- | --- | --- | --- |
+| 1.21 | lunar | `7b4c7b1802610841549ac9d96abc1c101318aaa84ed2690b777459f4d57bce9b` | mojang 1.0, official 0.0031, yarn 0.0097, intermediary 0.0021 | mojang 1.0, yarn 0.3274 | `mojang` / `mojang` |
+| 1.21 | fabric | `6c6faafc2e32c8ed9abe39da67e3bc3b40f9dcb1030db6ef4fda1b62ada17457` | intermediary 1.0, mojang 0.003 | intermediary 1.0, yarn 0.1679 | `intermediary` / `intermediary` |
+| 1.21.11 | lunar | `1c5cf18835f4c7cf02e0a73bf637c143ffc9162a290427061535d3e9f7060964` | mojang 1.0, yarn 0.0143 | mojang 1.0, yarn 0.3378 | `mojang` / `mojang` |
+| 1.21.11 | fabric | `c6b70dd3a52da4783bf3d4ce16e725327070e18893d6e8413242343e2e66de16` | intermediary 1.0, mojang 0.0062 | intermediary 1.0, yarn 0.1669 | `intermediary` / `intermediary` |
+
+Scores count only symbols present at runtime under some candidate name. The class caches lack a
+few game classes (1.21: 175 with Fabric, 2 without; 1.21.11: 223 with Fabric, 1 without), and
+the module without loader lacks members Lunar removed or changed (1.21: 208, 1.21.11: 372, e.g.
+`OptionInstance.codec()`, `Util$2.<init>(ForkJoinPool)` which becomes `<init>(Function)`).
+These are listed in each report and not exported. Unloaded, unbaked classes cannot be checked:
+a future capture that bakes them will add them.
+
+### NeoForge ≥ 1.21.6: installertools 3.x merge
+
+`neoforge-21.6.20-beta-installer.jar` (SHA-256 `e85b8ed2614f2ab3f10d2d179064e3e81f5836519a074d22b8a8460f2e91b5d5`)
+client processors: `MERGE_MAPPING --merge {MAPPINGS} --base {MOJMAPS} --output {MERGED_MAPPINGS} --reverse-base`,
+then `AutoRenamingTool --names {MERGED_MAPPINGS}`. `MAPPINGS` is
+`neoform-1.21.6-20250617.151856.zip` (SHA-256 `f537eca06638ed23796d094ab9315c6660ebb142b067c791d68bf4e6469df32a`):
+`config.json` has `"official": true` and `config/joined.tsrg` is identity (`a a 252363`).
+All names therefore come from the Mojang base: `mojang` / `mojang` (same for 21.7, 21.8, 21.9).
+
+### Excluded: Forge 1.16.2
+
+`forge-1.16.2-33.0.61-installer.jar` (SHA-256 `961fb78089c638a8a70f178bb6e51880bf5d4c027830c03da27031d1e0ad72b1`)
+uses `mcp_config:1.16.2-20200812.004259`, whose `joined.tsrg` maps two distinct synthetic lambdas
+of `ServerWorld` (official `a` and `b`, both `(Laag;Lfx;)V`, Mojang `lambda$makeObsidianPlatform$16`
+and `$17`) to the same SRG name `func_241122_a_`. The runtime names of that class cannot be exact;
+the combination is excluded in `matrix-overrides.json`.
+
 ## Era boundaries
 
 | Boundary | Result | Evidence |
