@@ -1,4 +1,4 @@
-//! MCP / MCPConfig formats: SRG, CSRG, TSRG v1/v2 and MCP CSV name tables.
+//! MCP / MCPConfig formats: SRG, TSRG v1/v2 and MCP CSV name tables.
 //! Fields without a descriptor are keyed with an empty one until the jar resolves it.
 
 use super::{ParseError, err};
@@ -51,35 +51,6 @@ pub fn read_srg(text: &str) -> Result<MappingSet, ParseError> {
                     line,
                 )?;
             }
-            _ => return err(F, line, format!("unknown entry {raw:?}")),
-        }
-    }
-    Ok(set)
-}
-
-#[allow(dead_code)] // no supported era publishes CSRG today; kept for sources that do
-/// CSRG (`class new`, `owner field new`, `owner method desc new`), `official` → `srg`.
-pub fn read_csrg(text: &str) -> Result<MappingSet, ParseError> {
-    const F: &str = "csrg";
-    let mut set = MappingSet::new(&["official", "srg"]);
-    for (i, raw) in text.lines().enumerate() {
-        let line = i + 1;
-        if raw.starts_with('#') {
-            continue;
-        }
-        match raw.split_whitespace().collect::<Vec<_>>().as_slice() {
-            [] => {}
-            [obf, new] => check(set.set_class_name(obf, 1, new), F, line)?,
-            [owner, name, new] => check(
-                set.set_member_name(owner, Kind::Field, (name, ""), 1, new),
-                F,
-                line,
-            )?,
-            [owner, name, desc, new] => check(
-                set.set_member_name(owner, Kind::Method, (name, desc), 1, new),
-                F,
-                line,
-            )?,
             _ => return err(F, line, format!("unknown entry {raw:?}")),
         }
     }
@@ -228,16 +199,6 @@ MD: bao/B ()Lbao; net/minecraft/client/Minecraft/func_71410_x ()Lnet/minecraft/c
             Some("func_71410_x")
         );
         assert_eq!(read_srg("XX: a b\n").unwrap_err().line, 1);
-    }
-
-    #[test]
-    fn csrg() {
-        let s = read_csrg(
-            "# c\nbao net/minecraft/client/Minecraft\nbao M field_1\nbao B ()Lbao; func_1\n",
-        )
-        .unwrap();
-        assert_eq!(s.classes["bao"].methods.len(), 1);
-        assert_eq!(read_csrg("a b c d e\n").unwrap_err().line, 1);
     }
 
     #[test]

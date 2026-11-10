@@ -29,7 +29,6 @@ MappingSet
 | Operation | Contract |
 | --- | --- |
 | `merge(a, b)` | Join two sets sharing a namespace; conflicting non-empty names are an error listing all conflicts |
-| `compose(a: X→Y, b: Y→Z)` | Produce `X→Z`; entries of `a` whose `Y` name is absent from `b` are reported, not dropped silently |
 | `invert / reorder(ns)` | Change `ns0`; descriptors are remapped accordingly |
 | `rename_ns`, `drop_ns`, `alias(runtime, named)` | Namespace management |
 | `complete(ns, policy)` | Fill missing names for unobfuscated symbols (lambdas, synthetic, `<init>`, Java overrides) with the `ns0` name, only where the jar proves the symbol is not obfuscated |
