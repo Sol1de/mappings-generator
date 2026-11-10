@@ -1,7 +1,7 @@
 {
   "format": "mc_mappings_catalog",
   "format_version": 1,
-  "description": "Draft Minecraft v1 symbol catalog for mc-bridge (session, player, world, entities, inventory, game thread). Pending the frozen list of mc-bridge ticket B1; symbols are named by their Mojang names, overridden per version where Mojang renamed them.",
+  "description": "Minecraft v1 symbol catalog: the symbols required by the frozen mc-bridge API v1 (mc_bridge/spec/api-v1.md). Symbols are named by their Mojang names, overridden per version where Mojang renamed them.",
   "classes": [
     { "id": "minecraft.client", "mojang": "net/minecraft/client/Minecraft" },
     { "id": "minecraft.blockable_event_loop", "mojang": "net/minecraft/util/thread/BlockableEventLoop" },
@@ -36,7 +36,11 @@
     { "id": "minecraft.abstract_container_menu.container_id", "owner": "minecraft.abstract_container_menu", "mojang": "containerId", "type": { "kind": "primitive", "name": "int" } },
     { "id": "minecraft.vec3.x", "owner": "minecraft.vec3", "mojang": "x", "type": { "kind": "primitive", "name": "double" } },
     { "id": "minecraft.vec3.y", "owner": "minecraft.vec3", "mojang": "y", "type": { "kind": "primitive", "name": "double" } },
-    { "id": "minecraft.vec3.z", "owner": "minecraft.vec3", "mojang": "z", "type": { "kind": "primitive", "name": "double" } }
+    { "id": "minecraft.vec3.z", "owner": "minecraft.vec3", "mojang": "z", "type": { "kind": "primitive", "name": "double" } },
+    { "id": "minecraft.click_type.pickup", "owner": "minecraft.click_type", "mojang": "PICKUP", "type": { "kind": "class", "id": "minecraft.click_type" } },
+    { "id": "minecraft.click_type.quick_move", "owner": "minecraft.click_type", "mojang": "QUICK_MOVE", "type": { "kind": "class", "id": "minecraft.click_type" } },
+    { "id": "minecraft.click_type.swap", "owner": "minecraft.click_type", "mojang": "SWAP", "type": { "kind": "class", "id": "minecraft.click_type" } },
+    { "id": "minecraft.click_type.throw", "owner": "minecraft.click_type", "mojang": "THROW", "type": { "kind": "class", "id": "minecraft.click_type" } }
   ],
   "methods": [
     { "id": "minecraft.client.get_instance", "owner": "minecraft.client", "mojang": "getInstance", "parameters": [], "returns": { "kind": "class", "id": "minecraft.client" } },
@@ -52,13 +56,12 @@
     { "id": "minecraft.entity.get_x", "owner": "minecraft.entity", "mojang": "getX", "parameters": [], "returns": { "kind": "primitive", "name": "double" } },
     { "id": "minecraft.entity.get_y", "owner": "minecraft.entity", "mojang": "getY", "parameters": [], "returns": { "kind": "primitive", "name": "double" } },
     { "id": "minecraft.entity.get_z", "owner": "minecraft.entity", "mojang": "getZ", "parameters": [], "returns": { "kind": "primitive", "name": "double" } },
-    { "id": "minecraft.entity.position", "owner": "minecraft.entity", "mojang": "position", "parameters": [], "returns": { "kind": "class", "id": "minecraft.vec3" } },
     { "id": "minecraft.entity.get_y_rot", "owner": "minecraft.entity", "mojang": "getYRot", "parameters": [], "returns": { "kind": "primitive", "name": "float" } },
     { "id": "minecraft.entity.get_x_rot", "owner": "minecraft.entity", "mojang": "getXRot", "parameters": [], "returns": { "kind": "primitive", "name": "float" } },
     { "id": "minecraft.entity.set_y_rot", "owner": "minecraft.entity", "mojang": "setYRot", "parameters": [{ "kind": "primitive", "name": "float" }], "returns": { "kind": "void" } },
     { "id": "minecraft.entity.set_x_rot", "owner": "minecraft.entity", "mojang": "setXRot", "parameters": [{ "kind": "primitive", "name": "float" }], "returns": { "kind": "void" } },
     { "id": "minecraft.entity.get_delta_movement", "owner": "minecraft.entity", "mojang": "getDeltaMovement", "parameters": [], "returns": { "kind": "class", "id": "minecraft.vec3" } },
-    { "id": "minecraft.entity.set_delta_movement", "owner": "minecraft.entity", "mojang": "setDeltaMovement", "parameters": [{ "kind": "class", "id": "minecraft.vec3" }], "returns": { "kind": "void" } },
+    { "id": "minecraft.entity.set_delta_movement", "owner": "minecraft.entity", "mojang": "setDeltaMovement", "parameters": [{ "kind": "primitive", "name": "double" }, { "kind": "primitive", "name": "double" }, { "kind": "primitive", "name": "double" }], "returns": { "kind": "void" } },
     { "id": "minecraft.entity.is_alive", "owner": "minecraft.entity", "mojang": "isAlive", "parameters": [], "returns": { "kind": "primitive", "name": "boolean" } },
     { "id": "minecraft.entity.is_removed", "owner": "minecraft.entity", "mojang": "isRemoved", "parameters": [], "returns": { "kind": "primitive", "name": "boolean" } },
     { "id": "minecraft.entity.on_ground", "owner": "minecraft.entity", "mojang": "onGround", "parameters": [], "returns": { "kind": "primitive", "name": "boolean" } },
