@@ -375,9 +375,12 @@ pub fn profile(catalog: &Catalog, file: &File, profile_id: &str) -> Result<Profi
         while let Type::Array { element } = t {
             t = element;
         }
+        // A game class has names besides its runtime one; classes known only by their runtime
+        // name (libraries and launcher classes in a Lunar cache) stay external.
+        let game = |c: &&ClassRec| c.names.len() > 1;
         if let Type::External { runtime_name } = t
-            && (by_runtime.contains_key(runtime_name.as_str())
-                || by_mojang.contains_key(runtime_name.as_str()))
+            && (by_runtime.get(runtime_name.as_str()).is_some_and(game)
+                || by_mojang.get(runtime_name.as_str()).is_some_and(game))
         {
             errors.push(format!(
                 "external type {runtime_name} is a mapped class: use its class id"
@@ -736,5 +739,21 @@ mod tests {
             .mojang_by_version
             .insert("1.21".into(), "net/minecraft/Entity".into());
         assert!(export(&c, &[file("official", "vanilla", "1.21", false)], 1).is_ok());
+    }
+
+    #[test]
+    fn runtime_only_classes_stay_external() {
+        // A Lunar cache also lists library classes, known by their runtime name only.
+        let mut lunar = file("lunar", "lunar", "1.21", false);
+        lunar.classes.push(serde_json::from_value(serde_json::json!({
+            "names": { "runtime": "com/mojang/authlib/GameProfile" }, "interfaces": [], "fields": [], "methods": []
+        })).unwrap());
+        lunar.classes[0].fields[0].descriptor = "Lcom/mojang/authlib/GameProfile;".into();
+        let mut c = catalog();
+        c.fields[0].field_type = Type::External {
+            runtime_name: "com/mojang/authlib/GameProfile".into(),
+        };
+        let result = export(&c, &[lunar], 1);
+        assert!(result.is_ok(), "{:?}", result.err());
     }
 }
