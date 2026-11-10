@@ -18,6 +18,7 @@ batch, reproducible, scriptable task, run by humans and by agents alike. Hence:
 | `mc_mappings_generator verify FILE` | Re-run verification on an exported file against its runtime jars |
 | `mc_mappings_generator scan [--minecraft-dir P] [--lunar-dir P]` | Detect locally installed configurations (official launcher profiles, Lunar) and optionally generate them (`--generate`) |
 | `mc_mappings_generator schema -o FILE` | Write the JSON Schema of the output format ([formats.md](formats.md)) |
+| `mc_mappings_generator tiny FILE -o OUT` | Convert a generated file to Tiny v2 ([formats.md](formats.md#tiny-v2-output)) |
 | `mc_mappings_generator cache info | clean [--older-than D]` | Inspect or clean the cache (`D` in days) |
 | `mc_mappings_generator mc-mappings --catalog C --data-version N -o FILE INPUT...` | Convert generated files into an mc-mappings dataset ([formats.md](formats.md#mc-mappings-dataset)) |
 

@@ -227,3 +227,31 @@ fn scans_an_official_launcher_tree() {
         ]
     );
 }
+
+#[test]
+fn converts_a_generated_file_to_tiny_v2() {
+    let dir = tempfile::tempdir().unwrap();
+    let out = dir.path().join("vanilla.tiny");
+    let o = run(
+        dir.path(),
+        &[
+            "tiny",
+            &fixture("vanilla-1.21.json"),
+            "-o",
+            out.to_str().unwrap(),
+        ],
+    );
+    assert!(o.status.success(), "{}", String::from_utf8_lossy(&o.stderr));
+    let text = std::fs::read_to_string(&out).unwrap();
+    assert!(text.starts_with("tiny\t2\t0\truntime\tmojang\tintermediary\n\tescaped-names\nc\ta\tnet/minecraft/client/Minecraft\tnet/minecraft/class_310\n"), "{text}");
+    assert!(
+        text.contains("\tm\t()La;\td\tgetInstance\tmethod_1551\n"),
+        "{text}"
+    );
+    assert_eq!(
+        run(dir.path(), &["tiny", "missing.json", "-o", "x.tiny"])
+            .status
+            .code(),
+        Some(2)
+    );
+}

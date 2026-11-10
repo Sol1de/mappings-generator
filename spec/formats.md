@@ -79,8 +79,21 @@ Rules:
   in the binary and written on request (`schema` command, [cli.md](cli.md)); tests validate
   outputs against it.
 
-JSON is the only output format. Tiny v2 output is deferred to a later version (a conversion from
-the JSON output).
+JSON is the generated format. Tiny v2 is available as a conversion of a JSON output (below).
+
+## Tiny v2 output
+
+`mc_mappings_generator tiny FILE -o OUT` converts one `mappings` file (gzipped or not) to Tiny v2:
+
+- Header `tiny\t2\t0\t<namespaces>` (`\t` is a tab), with the file's `namespaces` in order
+  (`runtime` first), then the property line `\tescaped-names`; names are escaped
+  (`\\`, `\n`, `\r`, `\t`, `\0`).
+- One `c` line per class, then `\tf\t<descriptor>` and `\tm\t<descriptor>` lines for its members,
+  in the file's order. Descriptors are the file's runtime descriptors (Tiny's first namespace).
+- A namespace without a name for a symbol is an empty column.
+
+Names and descriptors round-trip without loss (tested: JSON → Tiny v2 → Tiny reader). Tiny v2 has
+no place for access flags, `aliases` or provenance: those stay in the JSON file.
 
 Provenance keys are sorted alphabetically; `sources` lists every input (`id`, `url`, `size`,
 `sha256`, `license`). Lunar inputs use `lunar:<path inside .lunarclient>` URLs, never local paths.

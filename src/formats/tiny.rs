@@ -173,10 +173,88 @@ fn read_v2<'a>(
     Ok(set)
 }
 
+fn escape(name: &str) -> String {
+    let mut out = String::with_capacity(name.len());
+    for c in name.chars() {
+        match c {
+            '\\' => out.push_str("\\\\"),
+            '\n' => out.push_str("\\n"),
+            '\r' => out.push_str("\\r"),
+            '\t' => out.push_str("\\t"),
+            '\0' => out.push_str("\\0"),
+            c => out.push(c),
+        }
+    }
+    out
+}
+
+/// Writes a `mappings` file as Tiny v2 (spec/formats.md#tiny-v2-output): the file's namespaces
+/// in order, `runtime` first, runtime descriptors, empty columns for missing names.
+pub fn write(file: &super::json::File, mut w: impl std::io::Write) -> std::io::Result<()> {
+    let ns = &file.namespaces;
+    writeln!(w, "tiny\t2\t0\t{}", ns.join("\t"))?;
+    writeln!(w, "\tescaped-names")?;
+    let row = |names: &std::collections::BTreeMap<String, String>| {
+        ns.iter()
+            .map(|n| names.get(n).map(|v| escape(v)).unwrap_or_default())
+            .collect::<Vec<_>>()
+            .join("\t")
+    };
+    for c in &file.classes {
+        writeln!(w, "c\t{}", row(&c.names))?;
+        for f in &c.fields {
+            writeln!(w, "\tf\t{}\t{}", escape(&f.descriptor), row(&f.names))?;
+        }
+        for m in &c.methods {
+            writeln!(w, "\tm\t{}\t{}", escape(&m.descriptor), row(&m.names))?;
+        }
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::model::MemberKey;
+
+    #[test]
+    fn json_to_tiny_v2_round_trips_names_and_descriptors() {
+        let json = include_str!("../../tests/fixtures/lunar-fabric-1.21.json")
+            .replace("\"official\":\"d\"", "\"official\":\"d\\\\x\"");
+        let file = crate::formats::json::read(json.as_bytes()).unwrap();
+        let mut out = Vec::new();
+        write(&file, &mut out).unwrap();
+        let text = String::from_utf8(out).unwrap();
+        assert!(
+            text.starts_with("tiny\t2\t0\truntime\tofficial\tmojang\n\tescaped-names\n"),
+            "{text}"
+        );
+        let set = read(&text).unwrap();
+        assert_eq!(set.namespaces, file.namespaces);
+        for c in &file.classes {
+            let back = &set.classes[&c.names["runtime"]];
+            for (i, ns) in set.namespaces.iter().enumerate() {
+                assert_eq!(back.names[i].as_ref(), c.names.get(ns), "class {ns}");
+            }
+            for (kind, list) in [(Kind::Field, &c.fields), (Kind::Method, &c.methods)] {
+                assert_eq!(back.members(kind).len(), list.len());
+                for m in list {
+                    let got =
+                        &back.members(kind)[&MemberKey::new(&m.names["runtime"], &m.descriptor)];
+                    for (i, ns) in set.namespaces.iter().enumerate() {
+                        assert_eq!(got.names[i].as_ref(), m.names.get(ns), "{kind:?} {ns}");
+                    }
+                }
+            }
+        }
+        // The escaped name came back intact.
+        let client = &set.classes["net/minecraft/class_310"];
+        assert_eq!(
+            client.methods[&MemberKey::new("method_1551", "()Lnet/minecraft/class_310;")].names[1]
+                .as_deref(),
+            Some("d\\x")
+        );
+    }
 
     #[test]
     fn reads_v2_with_escapes_and_ignored_sections() {

@@ -29,6 +29,7 @@ mc_mappings_generator generate -v 1.21.11 -l fabric -o out
 mc_mappings_generator generate --all --jobs 6 -o out # whole matrix; exit 4 if some fail
 mc_mappings_generator verify out/1.21.11/official-fabric-0.20.1.json
 mc_mappings_generator schema -o mappings.schema.json
+mc_mappings_generator tiny out/1.21.11/official-fabric-0.20.1.json -o fabric.tiny   # Tiny v2
 ```
 
 Each configuration gives `out/<version>/<launcher>-<loader>[-<build>].json` (the mappings) and
