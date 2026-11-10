@@ -2,10 +2,16 @@
 
 Inputs for the [mc-mappings](../../../mc_mappings) table format (schema version 1).
 
-- [`catalog-v1.json`](catalog-v1.json): Minecraft v1 symbols needed by mc-bridge (session, player,
-  world, entities, inventory, game thread), by Mojang name and semantic types. It is the
-  catalog of mc-mappings `data_version` 1 (`mc_mappings/spec/catalog.md`), proposed to mc-bridge
-  ticket B1; changing it means editing this file, regenerating, and a new `data_version`.
+- [`catalog-v1.json`](catalog-v1.json): the symbols of the first mc-bridge API v1 catalog (session,
+  player, world, entities, inventory, game thread), by Mojang name and semantic types. It is the
+  catalog of mc-mappings `data_version` 1 (`mc_mappings/spec/catalog.md`); changing it means
+  editing this file, regenerating, and a new `data_version`.
+- [`catalog-v2-common.json`](catalog-v2-common.json): `catalog-v1.json` plus the symbols added by
+  the revised mc-bridge API v1 (`mc_bridge/spec/api-v1.md`, appendix) that have the same types on
+  every configuration (77 classes, 88 fields, 163 methods; exported and audited on the ten
+  configurations). It is not published: the revised API also needs symbols whose type differs
+  between 1.21 and 1.21.11 (not expressible in this catalog format yet) and symbols that exist in
+  one version only (needs mc-mappings `schema_version` 2).
 - [`build-dataset.sh`](build-dataset.sh): generates the ten target configurations (1.21 and
   1.21.11 × standard Vanilla/Fabric/Forge, Lunar, Lunar + Fabric) and converts them.
 
