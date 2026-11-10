@@ -114,6 +114,12 @@ enum Command {
         #[arg(short, long)]
         output: PathBuf,
     },
+    /// Convert a generated file to Tiny v2.
+    Tiny {
+        file: PathBuf,
+        #[arg(short, long)]
+        output: PathBuf,
+    },
     /// Inspect or clean the cache.
     Cache {
         #[command(subcommand)]
@@ -637,6 +643,16 @@ impl App {
             }
             Command::Schema { output } => {
                 std::fs::write(output, formats::json::SCHEMA).map_err(io)?;
+                println!("{}", output.display());
+            }
+            Command::Tiny { file, output } => {
+                let f = std::fs::File::open(file)
+                    .map_err(|e| usage(format!("{}: {e}", file.display())))?;
+                let parsed = formats::json::read(f)
+                    .map_err(|e| usage(format!("{}: {e}", file.display())))?;
+                let mut w = std::io::BufWriter::new(std::fs::File::create(output).map_err(io)?);
+                formats::tiny::write(&parsed, &mut w).map_err(io)?;
+                std::io::Write::flush(&mut w).map_err(io)?;
                 println!("{}", output.display());
             }
             Command::Cache { action } => match action {
