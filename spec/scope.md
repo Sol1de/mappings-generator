@@ -33,7 +33,8 @@ The provider abstraction must allow adding them later without changing the pipel
 
 For `official`, the runtime is fully determined by the version and the loader.
 For `lunar`, available versions and modules (`lunar` = no loader, `fabric`, others if offered)
-are discovered from Lunar metadata. A Lunar configuration is never assumed identical to the
+are the ones captured from the local Lunar installation (launched, then `scan`; see
+[cli.md](cli.md#local-installation-scan)). A Lunar configuration is never assumed identical to the
 official one; its runtime namespace is detected (see [namespaces.md](namespaces.md)).
 
 ## Configuration matrix
@@ -58,6 +59,7 @@ Lunar metadata requests; the generated mappings are platform-independent.
 - Running the game, a JVM or a loader installer.
 - Mod mappings, server mappings, Bedrock.
 - Parameter names, local variables and Javadoc (possible later extension via Parchment/Yarn).
-- Consumer-specific formats (semantic catalogs, resolvers): done downstream from the JSON output.
+- Resolvers and consumer logic. The one consumer conversion shipped, `mc-mappings`, is a
+  downstream transformation of the JSON output ([formats.md](formats.md#mc-mappings-dataset)).
 - Tiny v2 output (possible later version, converted from the JSON output).
 - Graphical interface: the CLI is the only interface.
