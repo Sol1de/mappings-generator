@@ -495,6 +495,12 @@ pub fn generate(cache: &Cache, base: &Base, cfg: &Configuration) -> Result<Gener
             base.version
         ))
     })?;
+    // MCP names are applied over SRG: a symbol without an MCP name keeps its SRG name.
+    if let (Some(mcp), Some(srg)) = (set.ns("mcp"), set.ns("srg"))
+        && (ci == mcp || mi == mcp)
+    {
+        set.fill_from(mcp, srg);
+    }
     // The runtime remapper keeps names its mappings do not cover.
     set.complete(ci, Complete::Remap);
     set.complete(mi, Complete::Remap);
@@ -513,6 +519,7 @@ pub fn generate(cache: &Cache, base: &Base, cfg: &Configuration) -> Result<Gener
     let (cov, gaps) = coverage(&set, named_of(&set));
     let mut absent_at_runtime = Vec::new();
     let mut absent_members = Vec::new();
+    let mut static_changed = Vec::new();
     let runtime_symbols = if let Some((inv, _)) = &runtime_jar {
         if ci != mi {
             return Err(gen_err(
@@ -551,18 +558,25 @@ pub fn generate(cache: &Cache, base: &Base, cfg: &Configuration) -> Result<Gener
                     let name = m.names[mi].as_deref().unwrap_or(&k.name);
                     let desc =
                         crate::model::remap_descriptor(&k.desc, |n| map.get(n).map(String::as_str));
-                    let keep = list.iter().any(|(n, d, _)| n == name && *d == desc);
-                    if !keep {
-                        absent_members.push(format!("{rt_name}.{name}{desc}"));
+                    let found = list.iter().find(|(n, d, _)| n == name && *d == desc);
+                    match found {
+                        None => absent_members.push(format!("{rt_name}.{name}{desc}")),
+                        Some((_, _, a))
+                            if m.access
+                                .is_some_and(|x| (x ^ a) & crate::model::ACC_STATIC != 0) =>
+                        {
+                            static_changed.push(format!(
+                                "static flag of {rt_name}.{name}{desc} changed by the launcher"
+                            ));
+                        }
+                        Some(_) => {}
                     }
-                    keep
+                    found.is_some()
                 });
             }
         }
         let symbols = verify::Symbols::from_jar(&inv.classes);
-        let mut expected = verify::Symbols::from_set(&set, ci, mi, true);
-        expected.0.retain(|k, _| inv.classes.contains_key(k));
-        errors.extend(verify::check(&expected, &symbols));
+        warnings.append(&mut static_changed);
         let (reordered, losses) = set.reorder(&classes_ns).map_err(gen_err)?;
         if !losses.is_empty() {
             return Err(joined(losses));
@@ -570,6 +584,10 @@ pub fn generate(cache: &Cache, base: &Base, cfg: &Configuration) -> Result<Gener
         set = reordered;
         // Lunar's own classes and members, with their runtime access flags.
         warnings.extend(set.attach_jar(&inv.classes));
+        // Verified with runtime access flags: the class cache is the runtime.
+        let mut expected = verify::Symbols::from_set(&set, 0, 0, true);
+        expected.0.retain(|k, _| inv.classes.contains_key(k));
+        errors.extend(verify::check(&expected, &symbols));
         runtime = Runtime {
             classes: 0,
             members: 0,

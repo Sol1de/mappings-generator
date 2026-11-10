@@ -166,3 +166,64 @@ fn exit_codes() {
     assert!(!out.exists());
     assert_eq!(o(&["cache", "info"]), Some(0));
 }
+
+#[test]
+fn scans_an_official_launcher_tree() {
+    let dir = tempfile::tempdir().unwrap();
+    let mc = dir.path().join("mc");
+    let profile = |id: &str, json: serde_json::Value| {
+        let d = mc.join("versions").join(id);
+        std::fs::create_dir_all(&d).unwrap();
+        std::fs::write(d.join(format!("{id}.json")), json.to_string()).unwrap();
+    };
+    profile(
+        "1.21.11",
+        serde_json::json!({"id": "1.21.11", "type": "release"}),
+    );
+    profile(
+        "26.4-snapshot-8",
+        serde_json::json!({"id": "26.4-snapshot-8", "type": "snapshot"}),
+    );
+    profile(
+        "fabric-loader-0.20.1-1.21.11",
+        serde_json::json!({"id": "fabric-loader-0.20.1-1.21.11", "inheritsFrom": "1.21.11",
+            "libraries": [{"name": "net.fabricmc:fabric-loader:0.20.1"}, {"name": "net.fabricmc:intermediary:1.21.11"}]}),
+    );
+    profile(
+        "1.21.11-forge-61.2.4",
+        serde_json::json!({"id": "1.21.11-forge-61.2.4", "inheritsFrom": "1.21.11",
+            "libraries": [{"name": "net.minecraftforge:forge:1.21.11-61.2.4"}]}),
+    );
+    let o = run(
+        dir.path(),
+        &[
+            "--json",
+            "scan",
+            "--minecraft-dir",
+            mc.to_str().unwrap(),
+            "--lunar-dir",
+            dir.path().join("none").to_str().unwrap(),
+        ],
+    );
+    assert!(o.status.success(), "{}", String::from_utf8_lossy(&o.stderr));
+    let found: serde_json::Value = serde_json::from_slice(&o.stdout).unwrap();
+    let rows: Vec<String> = found
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| {
+            format!(
+                "{} {} {}",
+                c["minecraft_version"], c["loader"], c["loader_version"]
+            )
+        })
+        .collect();
+    assert_eq!(
+        rows,
+        [
+            r#""1.21.11" "fabric" "0.20.1""#,
+            r#""1.21.11" "forge" "1.21.11-61.2.4""#,
+            r#""1.21.11" "vanilla" null"#
+        ]
+    );
+}

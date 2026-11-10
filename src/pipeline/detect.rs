@@ -23,8 +23,12 @@ fn round(x: f64) -> f64 {
     (x * 10_000.0).round() / 10_000.0
 }
 
-/// Best candidate if it reaches the threshold and beats the runner-up by the margin.
-fn select(scores: &BTreeMap<String, (usize, usize)>) -> Option<String> {
+/// Best candidate if it reaches the threshold and beats the runner-up by the margin. Candidates
+/// `same` as the best (identical names on every scored symbol) are one hypothesis, not rivals.
+fn select(
+    scores: &BTreeMap<String, (usize, usize)>,
+    same: impl Fn(&str, &str) -> bool,
+) -> Option<String> {
     let mut ranked: Vec<(&String, f64)> = scores
         .iter()
         .map(|(k, &(hit, total))| {
@@ -41,7 +45,11 @@ fn select(scores: &BTreeMap<String, (usize, usize)>) -> Option<String> {
     ranked.sort_by(|a, b| b.1.total_cmp(&a.1).then(a.0.cmp(b.0)));
     match ranked.as_slice() {
         [(best, s), rest @ ..]
-            if *s >= THRESHOLD && rest.first().is_none_or(|r| s - r.1 >= MARGIN) =>
+            if *s >= THRESHOLD
+                && rest
+                    .iter()
+                    .find(|r| !same(best, r.0))
+                    .is_none_or(|r| s - r.1 >= MARGIN) =>
         {
             Some((*best).clone())
         }
@@ -106,7 +114,11 @@ pub fn detect(
             })
             .collect()
     };
-    let Some(class_ns) = select(&class_scores) else {
+    let same_classes = |a: &str, b: &str| {
+        let (i, j) = (set.ns(a).expect("scored"), set.ns(b).expect("scored"));
+        present.iter().all(|c| c.names[i] == c.names[j])
+    };
+    let Some(mut class_ns) = select(&class_scores, same_classes) else {
         let (matches, unmatched) = structural(official_fp, runtime_fp);
         return Err(format!(
             "ambiguous runtime class namespace, scores {:?}; structural fallback: {} unique matches, {unmatched} unmatched",
@@ -144,12 +156,16 @@ pub fn detect(
             }
         }
     }
-    let Some(member_ns) = select(&member_scores) else {
+    let Some(member_ns) = select(&member_scores, |_, _| false) else {
         return Err(format!(
             "ambiguous runtime member namespace, scores {:?}",
             as_ratio(&member_scores)
         ));
     };
+    // Equivalent class namespaces (e.g. `srg` and `mcp` before 1.13): name the one members use.
+    if member_ns != class_ns && same_classes(&class_ns, &member_ns) {
+        class_ns = member_ns.clone();
+    }
     let unmatched_classes = set.classes.len() - class_scores[&class_ns].0;
     let unmatched_members = member_scores[&member_ns].1 - member_scores[&member_ns].0;
     Ok(Verdict {
@@ -257,5 +273,25 @@ mod tests {
         let (m, unmatched) = structural(&official, &runtime);
         assert_eq!(m, BTreeMap::from([("a".to_string(), "x/A".to_string())]));
         assert_eq!(unmatched, 2);
+    }
+
+    #[test]
+    fn identical_class_namespaces_are_one_hypothesis() {
+        // Before 1.13, `srg` and `mcp` share class names; only members tell them apart.
+        let mut s = MappingSet::new(&["official", "srg", "mcp"]);
+        for i in 0..100 {
+            let o = format!("c{i}");
+            s.set_class_name(&o, 1, &format!("net/minecraft/C{i}"))
+                .unwrap();
+            s.set_class_name(&o, 2, &format!("net/minecraft/C{i}"))
+                .unwrap();
+            s.set_member_name(&o, Kind::Method, ("a", "()V"), 1, &format!("func_{i}_a"))
+                .unwrap();
+            s.set_member_name(&o, Kind::Method, ("a", "()V"), 2, &format!("tick{i}"))
+                .unwrap();
+        }
+        let rt = runtime(|i| format!("net/minecraft/C{i}"), |i| format!("tick{i}"));
+        let v = detect(&s, &rt, &BTreeMap::new(), &BTreeMap::new()).unwrap();
+        assert_eq!((v.classes.as_str(), v.members.as_str()), ("mcp", "mcp"));
     }
 }

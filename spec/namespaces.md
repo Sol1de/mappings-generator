@@ -38,6 +38,7 @@ Detected so far (2026-11-10, Lunar launcher 3.7.34, proofs in the evidence file)
 
 | Launcher | Module | Versions | Classes | Members |
 | --- | --- | --- | --- | --- |
+| lunar | lunar (no loader) | 1.8.9 | `mcp` (= `srg` class names) | `mcp`, `srg` where MCP has no name |
 | lunar | lunar (no loader) | 1.21, 1.21.11 | `mojang` | `mojang` |
 | lunar | fabric | 1.21, 1.21.11 | `intermediary` | `intermediary` |
 
@@ -94,7 +95,9 @@ Candidates: every namespace available for that Minecraft version.
 
 Lunar remaps the game at launch with its own mappings (`lunar-platform-mappings-v<mc>.jar`,
 proprietary `.kin` files: `intermediary`, `lunar2intermediary`, `lunar_named`), so the
-Lunar runtime namespace is never derived statically. The runtime jars are Lunar's class cache
+Lunar runtime namespace is never derived statically. MCP names are applied over SRG: a runtime in `mcp` keeps the
+SRG name of a symbol MCP does not name. Candidates with the same class names (`srg` and `mcp`
+before 1.13) are one class hypothesis; members tell them apart. The runtime jars are Lunar's class cache
 (`offline/multiver/cache/<a>/<b>/bake.zip`, entries named `a.b.C`), written at launch after
 Lunar's transformations (see [sources.md](sources.md#lunar-metadata)).
 

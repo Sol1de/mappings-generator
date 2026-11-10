@@ -154,7 +154,11 @@ Each configuration was launched once from the Lunar launcher, then captured with
 Lunar's transformations); its entries are class files named `a.b.C`. Classpath checksums are
 the ones Lunar logs in `ichor-boot.log`: `genesis-0.1.0-SNAPSHOT-all.jar` `a425c132`,
 `lunar.jar` `bc92bf50`, `lunar-platform-mappings-v1_21_0.jar` `bcd49680` (1.21),
-`lunar-platform-mappings-v1_21_11.jar` `302edf01` (1.21.11). Fabric module: loader 0.20.1.
+`lunar-platform-mappings-v1_21_11.jar` `302edf01` (1.21.11). 1.8.9: `lunar-platform-mappings-v1_8.jar` `d70f9ed7`,
+`legacy-0.1.0-SNAPSHOT-all-nomappings.jar` `6948127b`; its boot log already shows MCP names
+(`TextureMap::loadTextureAtlas`). Lunar changed one static flag there
+(`FaceBakery.getFaceBrightness`, reported as a warning) and names 124 synthetic members of
+anonymous classes differently (not exported). Fabric module: loader 0.20.1.
 
 | Version | Module | Class cache SHA-256 | Class scores | Member scores | Verdict |
 | --- | --- | --- | --- | --- | --- |
@@ -162,6 +166,7 @@ the ones Lunar logs in `ichor-boot.log`: `genesis-0.1.0-SNAPSHOT-all.jar` `a425c
 | 1.21 | fabric | `6c6faafc2e32c8ed9abe39da67e3bc3b40f9dcb1030db6ef4fda1b62ada17457` | intermediary 1.0, mojang 0.003 | intermediary 1.0, yarn 0.1679 | `intermediary` / `intermediary` |
 | 1.21.11 | lunar | `1c5cf18835f4c7cf02e0a73bf637c143ffc9162a290427061535d3e9f7060964` | mojang 1.0, yarn 0.0143 | mojang 1.0, yarn 0.3378 | `mojang` / `mojang` |
 | 1.21.11 | fabric | `c6b70dd3a52da4783bf3d4ce16e725327070e18893d6e8413242343e2e66de16` | intermediary 1.0, mojang 0.0062 | intermediary 1.0, yarn 0.1669 | `intermediary` / `intermediary` |
+| 1.8.9 | lunar | `6ffcadd60129067579059c62adb97b9d95331c4cbe101085c9db81bb9928dd8d` | mcp 1.0, srg 1.0 (same class names), official 0.0132 | mcp 1.0, srg 0.1962, official 0.0542 | `mcp` / `mcp` |
 
 Scores count only symbols present at runtime under some candidate name. The class caches lack a
 few game classes (1.21: 175 with Fabric, 2 without; 1.21.11: 223 with Fabric, 1 without), and
