@@ -3,8 +3,9 @@
 Inputs for the [mc-mappings](../../../mc_mappings) table format (schema version 1).
 
 - [`catalog-v1.json`](catalog-v1.json): Minecraft v1 symbols needed by mc-bridge (session, player,
-  world, entities, inventory, game thread), by Mojang name and semantic types. **Draft** until
-  mc-bridge ticket B1 freezes the list; adding or removing a symbol only edits this file.
+  world, entities, inventory, game thread), by Mojang name and semantic types. It is the
+  catalog of mc-mappings `data_version` 1 (`mc_mappings/spec/catalog.md`), proposed to mc-bridge
+  ticket B1; changing it means editing this file, regenerating, and a new `data_version`.
 - [`build-dataset.sh`](build-dataset.sh): generates the ten target configurations (1.21 and
   1.21.11 × standard Vanilla/Fabric/Forge, Lunar, Lunar + Fabric) and converts them.
 
