@@ -7,7 +7,7 @@
    through the cache.
 3. **Build** a `MappingSet` with `official` as `ns0`:
    - load each available source (ProGuard, Tiny, SRG family, MCP CSV);
-   - compose/merge them onto `official` ([model.md](model.md));
+   - merge them onto `official` ([model.md](model.md));
    - for unobfuscated versions, `official` and `mojang` are the jar names.
 4. **Reconstruct** from the client jar: `attach_jar`, `propagate`, `complete`.
 5. **Determine the runtime namespace**: derived for the official launcher, detected for Lunar
@@ -25,7 +25,7 @@ same version (jar inventory, base `MappingSet`) is computed once and reused.
 | Every class/member of the runtime namespace exists in the runtime jars with the same descriptor and static flag | error |
 | No duplicate name per namespace (model invariants) | error |
 | Detection verdict unambiguous | error |
-| Composition losses (entries dropped between namespaces) | warning, counted |
+| Symbols named by mapping sources but absent from the client jar | removed, counted (`pruned_not_in_client_jar`) |
 | Coverage: share of jar symbols with a `named` name, per kind | report |
 
 For the official launcher, the runtime jars are the client jar remapped into the runtime
