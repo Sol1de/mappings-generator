@@ -75,8 +75,8 @@ Rules:
 - Options: `--namespaces` restricts exported namespaces (`runtime` always kept); `--pretty`
   indents; `--gzip` compresses. Compact, non-gzipped output is the default.
 - Breaking changes increment `format_version`. The JSON Schema of the current version is embedded
-  in the binary and written on request (`schema` command, [cli.md](cli.md)); tests validate
-  outputs against it.
+  in the binary ([mappings.schema.json](mappings.schema.json)) and written on request (`schema`
+  command, [cli.md](cli.md)); tests validate outputs against it.
 
 JSON is the generated format. Tiny v2 is available as a conversion of a JSON output (below).
 
@@ -109,7 +109,7 @@ Lunar, `not_exported_absent_at_runtime` / `members_not_exported_absent_at_runtim
 
 ## mc-mappings dataset
 
-`mc-mappings` converts generated files into the mc-mappings table format (schema version 1,
+`mc-mappings` converts generated files into the mc-mappings table format (schema version 2,
 `mc_mappings/spec/table-format.md`). It is a downstream conversion: the `mappings` output above is
 unchanged.
 
@@ -124,6 +124,17 @@ Input catalog (`format: "mc_mappings_catalog"`, `format_version: 1`):
 Any entry may add `mojang_by_version` (`{ "<minecraft_version>": "<name>" }`) for symbols Mojang
 renamed (1.21.11: `ResourceLocation` → `Identifier`). Types reference classes by catalog id;
 `external` types must not name a mapped game class.
+
+Optional per-version fields, for symbols that are not the same in every Minecraft version:
+
+| Field | On | Meaning |
+| --- | --- | --- |
+| `type_by_version` | fields | `{ "<minecraft_version>": <type> }`: the type where it differs from `type` (`fallDistance`: `float` in 1.21, `double` in 1.21.11) |
+| `parameters_by_version`, `returns_by_version` | methods | same for the parameter list and the return type |
+| `versions` | any entry | the Minecraft versions the symbol exists in (absent: all of them). The profiles of other versions have no record for it, and the dataset lists it in `catalog.scoped` |
+
+A member that exists in a version needs its owner and the classes of its signature in that version;
+otherwise the export fails.
 
 For each input file: classes are found by Mojang name (the `mojang` names, or `runtime` when the
 runtime namespace is `mojang`); each member is looked up by Mojang name and runtime descriptor in
