@@ -61,7 +61,7 @@ fn exports_an_mc_mappings_dataset_with_shared_profiles() {
     assert!(o.status.success(), "{}", String::from_utf8_lossy(&o.stderr));
     let d: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(&out).unwrap()).unwrap();
-    assert_eq!(d["schema_version"], 1);
+    assert_eq!(d["schema_version"], 2);
     assert_eq!(d["data_version"], 7);
     assert_eq!(d["configurations"].as_array().unwrap().len(), 2);
     let lunar = &d["profiles"][0];
