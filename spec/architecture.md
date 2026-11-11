@@ -8,6 +8,7 @@ A single Cargo package, `mc_mappings_generator` (one binary of the same name).
 mc_mappings_generator/
 ├── Cargo.toml          package, edition 2024, rust-version 1.99, lints
 ├── Cargo.lock, README.md, .gitignore
+├── mappings.schema.json       JSON Schema of the output, embedded in the binary (formats.md)
 ├── .github/workflows/ci.yml   runs scripts/check.sh
 ├── scripts/check.sh           fmt + clippy -D warnings + tests
 ├── spec/
