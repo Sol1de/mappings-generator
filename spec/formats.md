@@ -75,7 +75,7 @@ Rules:
 - Options: `--namespaces` restricts exported namespaces (`runtime` always kept); `--pretty`
   indents; `--gzip` compresses. Compact, non-gzipped output is the default.
 - Breaking changes increment `format_version`. The JSON Schema of the current version is embedded
-  in the binary ([mappings.schema.json](mappings.schema.json)) and written on request (`schema`
+  in the binary ([mappings.schema.json](../mappings.schema.json)) and written on request (`schema`
   command, [cli.md](cli.md)); tests validate outputs against it.
 
 JSON is the generated format. Tiny v2 is available as a conversion of a JSON output (below).

@@ -20,7 +20,7 @@ consumer (for example a semantic symbol catalog) is a separate, downstream trans
 | [model.md](model.md) | Internal mapping model and its operations |
 | [pipeline.md](pipeline.md) | Generation steps, reconstruction, verification, cache, determinism |
 | [formats.md](formats.md) | Input formats read and JSON output format written |
-| [mappings.schema.json](mappings.schema.json) | JSON Schema of the output format, embedded in the binary |
+| [../mappings.schema.json](../mappings.schema.json) | JSON Schema of the output format, embedded in the binary |
 | [cli.md](cli.md) | Command-line interface |
 | [architecture.md](architecture.md) | Project layout, module call rule, errors, testing |
 
