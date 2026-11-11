@@ -52,13 +52,14 @@ Lunar + Fabric on Intermediary names, for 1.21 and 1.21.11.
 ### mc-mappings dataset
 
 ```sh
-consumers/mc_mappings/build-dataset.sh OUT 1     # 10 configurations → OUT/minecraft-v1.json
+consumers/mc_mappings/build-dataset.sh OUT 2     # 10 configurations → OUT/minecraft-v1.json
 ```
 
 The [catalog](consumers/mc_mappings/catalog-v1.json) names each semantic symbol by its Mojang
-name and semantic types (with per-version overrides for renamed symbols). The export resolves the
-runtime name, declaring class, static flag and descriptor of every symbol in every configuration,
-shares identical tables between configurations, and fails on any missing symbol.
+name and semantic types (with per-version overrides for symbols Mojang renamed, retyped, added or
+removed). The export resolves the runtime name, declaring class, static flag and descriptor of
+every symbol in every configuration of the versions it exists in, shares identical tables between
+configurations, and fails on any missing symbol.
 `OUT/minecraft-v1.provenance.json` records each input file's hash and provenance.
 
 ## Output and licences
