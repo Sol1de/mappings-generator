@@ -8,7 +8,7 @@ use std::io::{self, Read, Write};
 pub const FORMAT: &str = "mappings";
 pub const FORMAT_VERSION: u32 = 1;
 /// JSON Schema of the output, embedded in the binary (`schema` command).
-pub const SCHEMA: &str = include_str!("mappings.schema.json");
+pub const SCHEMA: &str = include_str!("../../spec/mappings.schema.json");
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]

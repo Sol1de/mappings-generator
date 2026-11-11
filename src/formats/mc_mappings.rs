@@ -886,6 +886,19 @@ mod tests {
                 .any(|e| e.contains("class minecraft.entity does not exist in 1.21.11")),
             "{err:?}"
         );
+        // Per-version types are validated like the default ones.
+        let mut c = catalog();
+        let unknown = Type::Class {
+            id: "minecraft.unknown".into(),
+        };
+        c.fields[0]
+            .type_by_version
+            .insert("1.21.11".into(), unknown);
+        let err = export(&c, &files(), 1).unwrap_err();
+        assert!(
+            err.iter().any(|e| e.contains("unknown class id")),
+            "{err:?}"
+        );
     }
 
     #[test]
