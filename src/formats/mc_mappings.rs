@@ -1,9 +1,10 @@
 //! Downstream conversion of `mappings` outputs into the mc-mappings table format
-//! (schema version 1, see `mc_mappings/spec/table-format.md`).
+//! (schema version 2, see `mc_mappings/spec/table-format.md`).
 //!
 //! The input catalog names each semantic symbol by its Mojang name and its semantic types;
 //! the runtime names, declaring classes, static flags and descriptors come from the generated
-//! files. Every catalog symbol must resolve in every configuration, or the export fails.
+//! files. Every catalog symbol must resolve in every configuration of the Minecraft versions it
+//! exists in, or the export fails.
 
 use super::json::{ClassRec, File};
 use serde::{Deserialize, Serialize};
@@ -31,6 +32,11 @@ fn for_version<'a>(
     by_version.get(version).map_or(mojang, String::as_str)
 }
 
+/// Whether a symbol limited to `versions` (empty: every version) exists in `version`.
+fn exists_in(versions: &[String], version: &str) -> bool {
+    versions.is_empty() || versions.iter().any(|v| v == version)
+}
+
 #[derive(Clone, Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CatalogClass {
@@ -38,6 +44,9 @@ pub struct CatalogClass {
     pub mojang: String,
     #[serde(default)]
     pub mojang_by_version: BTreeMap<String, String>,
+    /// Minecraft versions the symbol exists in; empty means all of them.
+    #[serde(default)]
+    pub versions: Vec<String>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -48,8 +57,13 @@ pub struct CatalogField {
     pub mojang: String,
     #[serde(default)]
     pub mojang_by_version: BTreeMap<String, String>,
+    #[serde(default)]
+    pub versions: Vec<String>,
     #[serde(rename = "type")]
     pub field_type: Type,
+    /// Type in the versions where it differs from `type`.
+    #[serde(default)]
+    pub type_by_version: BTreeMap<String, Type>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -60,8 +74,15 @@ pub struct CatalogMethod {
     pub mojang: String,
     #[serde(default)]
     pub mojang_by_version: BTreeMap<String, String>,
+    #[serde(default)]
+    pub versions: Vec<String>,
     pub parameters: Vec<Type>,
     pub returns: Type,
+    /// Signature parts in the versions where they differ from `parameters` and `returns`.
+    #[serde(default)]
+    pub parameters_by_version: BTreeMap<String, Vec<Type>>,
+    #[serde(default)]
+    pub returns_by_version: BTreeMap<String, Type>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -122,10 +143,18 @@ pub struct ConfigurationRecord {
 }
 
 #[derive(Debug, Serialize)]
+pub struct VersionScope {
+    pub id: String,
+    pub minecraft_versions: Vec<String>,
+}
+
+#[derive(Debug, Serialize)]
 pub struct CatalogIds {
     pub classes: Vec<String>,
     pub fields: Vec<String>,
     pub methods: Vec<String>,
+    /// Symbols that exist only in some Minecraft versions.
+    pub scoped: Vec<VersionScope>,
 }
 
 #[derive(Debug, Serialize)]
@@ -207,16 +236,30 @@ impl Catalog {
             if !classes.contains(f.owner.as_str()) {
                 errors.push(format!("{}: unknown owner {}", f.id, f.owner));
             }
-            check_type(&f.field_type, &classes, false, &f.id, &mut errors);
+            for t in [&f.field_type]
+                .into_iter()
+                .chain(f.type_by_version.values())
+            {
+                check_type(t, &classes, false, &f.id, &mut errors);
+            }
         }
         for m in &self.methods {
             if !classes.contains(m.owner.as_str()) {
                 errors.push(format!("{}: unknown owner {}", m.id, m.owner));
             }
-            for p in &m.parameters {
+            for p in m
+                .parameters
+                .iter()
+                .chain(m.parameters_by_version.values().flatten())
+            {
                 check_type(p, &classes, false, &m.id, &mut errors);
             }
-            check_type(&m.returns, &classes, true, &m.id, &mut errors);
+            for r in [&m.returns]
+                .into_iter()
+                .chain(m.returns_by_version.values())
+            {
+                check_type(r, &classes, true, &m.id, &mut errors);
+            }
         }
         errors
     }
@@ -253,12 +296,17 @@ fn primitive_desc(name: &str) -> char {
     }
 }
 
-fn runtime_desc(t: &Type, class_rt: &HashMap<&str, &str>, out: &mut String) {
+/// Appends the runtime descriptor of `t`; fails with the class id this version does not have.
+fn runtime_desc<'t>(
+    t: &'t Type,
+    class_rt: &HashMap<&str, &str>,
+    out: &mut String,
+) -> Result<(), &'t str> {
     match t {
         Type::Primitive { name } => out.push(primitive_desc(name)),
         Type::Class { id } => {
             out.push('L');
-            out.push_str(class_rt[id.as_str()]);
+            out.push_str(class_rt.get(id.as_str()).ok_or(id.as_str())?);
             out.push(';');
         }
         Type::External { runtime_name } => {
@@ -268,10 +316,11 @@ fn runtime_desc(t: &Type, class_rt: &HashMap<&str, &str>, out: &mut String) {
         }
         Type::Array { element } => {
             out.push('[');
-            runtime_desc(element, class_rt, out);
+            runtime_desc(element, class_rt, out)?;
         }
         Type::Void => out.push('V'),
     }
+    Ok(())
 }
 
 /// Mapping-file-specific mc-mappings identity of a configuration.
@@ -342,7 +391,11 @@ pub fn profile(catalog: &Catalog, file: &File, profile_id: &str) -> Result<Profi
     let mut class_rt: HashMap<&str, &str> = HashMap::new();
     let mut id_of_rt: HashMap<&str, &str> = HashMap::new();
     let mut classes = Vec::new();
-    for c in &catalog.classes {
+    for c in catalog
+        .classes
+        .iter()
+        .filter(|c| exists_in(&c.versions, version))
+    {
         let name = for_version(&c.mojang, &c.mojang_by_version, version);
         match by_mojang.get(name) {
             Some(rec) => {
@@ -365,42 +418,66 @@ pub fn profile(catalog: &Catalog, file: &File, profile_id: &str) -> Result<Profi
     if !errors.is_empty() {
         return Err(errors);
     }
-    let types = catalog.fields.iter().map(|f| &f.field_type).chain(
-        catalog
-            .methods
-            .iter()
-            .flat_map(|m| m.parameters.iter().chain([&m.returns])),
-    );
-    for mut t in types {
-        while let Type::Array { element } = t {
-            t = element;
+    // Runtime descriptor of a member in this version (`returns` set for a method), or why it
+    // has none.
+    let describe = |parameters: &[Type], returns: Option<&Type>| -> Result<String, String> {
+        let mut desc = String::new();
+        if returns.is_some() {
+            desc.push('(');
         }
-        // A game class has names besides its runtime one; classes known only by their runtime
-        // name (libraries and launcher classes in a Lunar cache) stay external.
-        let game = |c: &&ClassRec| c.names.len() > 1;
-        if let Type::External { runtime_name } = t
-            && (by_runtime.get(runtime_name.as_str()).is_some_and(game)
-                || by_mojang.get(runtime_name.as_str()).is_some_and(game))
-        {
-            errors.push(format!(
-                "external type {runtime_name} is a mapped class: use its class id"
-            ));
+        for t in parameters {
+            runtime_desc(t, &class_rt, &mut desc)
+                .map_err(|id| format!("class {id} does not exist in {version}"))?;
         }
-    }
+        if let Some(t) = returns {
+            desc.push(')');
+            runtime_desc(t, &class_rt, &mut desc)
+                .map_err(|id| format!("class {id} does not exist in {version}"))?;
+        }
+        for mut t in parameters.iter().chain(returns) {
+            while let Type::Array { element } = t {
+                t = element;
+            }
+            // A game class has names besides its runtime one; classes known only by their
+            // runtime name (libraries and launcher classes in a Lunar cache) stay external.
+            let game = |c: &&ClassRec| c.names.len() > 1;
+            if let Type::External { runtime_name } = t
+                && (by_runtime.get(runtime_name.as_str()).is_some_and(game)
+                    || by_mojang.get(runtime_name.as_str()).is_some_and(game))
+            {
+                return Err(format!(
+                    "external type {runtime_name} is a mapped class: use its class id"
+                ));
+            }
+        }
+        Ok(desc)
+    };
+    let owner_rt = |owner: &str| {
+        class_rt
+            .get(owner)
+            .copied()
+            .ok_or_else(|| format!("owner {owner} does not exist in {version}"))
+    };
     let mut seen_members = HashSet::new();
     let mut fields = Vec::new();
-    for f in &catalog.fields {
-        let mut desc = String::new();
-        runtime_desc(&f.field_type, &class_rt, &mut desc);
-        let name = for_version(&f.mojang, &f.mojang_by_version, version);
-        match find(
-            &by_runtime,
-            mk,
-            class_rt[f.owner.as_str()],
-            name,
-            &desc,
-            false,
+    for f in catalog
+        .fields
+        .iter()
+        .filter(|f| exists_in(&f.versions, version))
+    {
+        let field_type = f.type_by_version.get(version).unwrap_or(&f.field_type);
+        let (desc, owner) = match (
+            describe(std::slice::from_ref(field_type), None),
+            owner_rt(&f.owner),
         ) {
+            (Ok(desc), Ok(owner)) => (desc, owner),
+            (Err(e), _) | (_, Err(e)) => {
+                errors.push(format!("field {}: {e}", f.id));
+                continue;
+            }
+        };
+        let name = for_version(&f.mojang, &f.mojang_by_version, version);
+        match find(&by_runtime, mk, owner, name, &desc, false) {
             Some((decl, rt_name, is_static)) => match id_of_rt.get(decl) {
                 Some(owner) if seen_members.insert(('f', decl, rt_name, desc.clone())) => fields
                     .push(FieldRecord {
@@ -408,7 +485,7 @@ pub fn profile(catalog: &Catalog, file: &File, profile_id: &str) -> Result<Profi
                         owner: (*owner).to_owned(),
                         runtime_name: rt_name.to_owned(),
                         is_static,
-                        field_type: f.field_type.clone(),
+                        field_type: field_type.clone(),
                     }),
                 Some(_) => errors.push(format!(
                     "field {}: another catalog field maps to {decl}.{rt_name}",
@@ -426,22 +503,25 @@ pub fn profile(catalog: &Catalog, file: &File, profile_id: &str) -> Result<Profi
         }
     }
     let mut methods = Vec::new();
-    for m in &catalog.methods {
-        let mut desc = String::from("(");
-        for p in &m.parameters {
-            runtime_desc(p, &class_rt, &mut desc);
-        }
-        desc.push(')');
-        runtime_desc(&m.returns, &class_rt, &mut desc);
+    for m in catalog
+        .methods
+        .iter()
+        .filter(|m| exists_in(&m.versions, version))
+    {
+        let parameters = m
+            .parameters_by_version
+            .get(version)
+            .unwrap_or(&m.parameters);
+        let returns = m.returns_by_version.get(version).unwrap_or(&m.returns);
+        let (desc, owner) = match (describe(parameters, Some(returns)), owner_rt(&m.owner)) {
+            (Ok(desc), Ok(owner)) => (desc, owner),
+            (Err(e), _) | (_, Err(e)) => {
+                errors.push(format!("method {}: {e}", m.id));
+                continue;
+            }
+        };
         let name = for_version(&m.mojang, &m.mojang_by_version, version);
-        match find(
-            &by_runtime,
-            mk,
-            class_rt[m.owner.as_str()],
-            name,
-            &desc,
-            true,
-        ) {
+        match find(&by_runtime, mk, owner, name, &desc, true) {
             Some((decl, rt_name, is_static)) => match id_of_rt.get(decl) {
                 Some(owner) if seen_members.insert(('m', decl, rt_name, desc.clone())) => methods
                     .push(MethodRecord {
@@ -449,8 +529,8 @@ pub fn profile(catalog: &Catalog, file: &File, profile_id: &str) -> Result<Profi
                         owner: (*owner).to_owned(),
                         runtime_name: rt_name.to_owned(),
                         is_static,
-                        parameters: m.parameters.clone(),
-                        returns: m.returns.clone(),
+                        parameters: parameters.clone(),
+                        returns: returns.clone(),
                     }),
                 Some(_) => errors.push(format!(
                     "method {}: another catalog method maps to {decl}.{rt_name}{desc}",
@@ -574,13 +654,23 @@ pub fn export(
         p.profile_id = new_id;
     }
     profiles.sort_by(|a, b| a.profile_id.cmp(&b.profile_id));
+    let scopes = (catalog.classes.iter().map(|c| (&c.id, &c.versions)))
+        .chain(catalog.fields.iter().map(|f| (&f.id, &f.versions)))
+        .chain(catalog.methods.iter().map(|m| (&m.id, &m.versions)));
     Ok(Dataset {
-        schema_version: 1,
+        schema_version: 2,
         data_version,
         catalog: CatalogIds {
             classes: catalog.classes.iter().map(|c| c.id.clone()).collect(),
             fields: catalog.fields.iter().map(|f| f.id.clone()).collect(),
             methods: catalog.methods.iter().map(|m| m.id.clone()).collect(),
+            scoped: scopes
+                .filter(|(_, versions)| !versions.is_empty())
+                .map(|(id, versions)| VersionScope {
+                    id: id.clone(),
+                    minecraft_versions: versions.clone(),
+                })
+                .collect(),
         },
         configurations,
         profiles,
@@ -704,7 +794,7 @@ mod tests {
         );
         let text = serde_json::to_string(&d).unwrap();
         assert!(text.contains(r#"{"kind":"array","element":{"kind":"array","element":{"kind":"primitive","name":"int"}}}"#), "{text}");
-        assert!(text.starts_with(r#"{"schema_version":1,"data_version":3,"catalog":{"classes":["minecraft.client","minecraft.entity"]"#));
+        assert!(text.starts_with(r#"{"schema_version":2,"data_version":3,"catalog":{"classes":["minecraft.client","minecraft.entity"]"#));
     }
 
     #[test]
@@ -742,14 +832,67 @@ mod tests {
     }
 
     #[test]
-    fn shipped_catalogs_are_valid() {
-        for text in [
-            include_str!("../../consumers/mc_mappings/catalog-v1.json"),
-            include_str!("../../consumers/mc_mappings/catalog-v2-common.json"),
-        ] {
-            let c: Catalog = serde_json::from_str(text).unwrap();
-            assert_eq!(c.validate(), Vec::<String>::new());
-        }
+    fn per_version_types_and_version_scopes() {
+        let files = || {
+            let mut newer = file("official", "vanilla", "1.21.11", false);
+            newer.classes[0].fields[0].descriptor = "I".into();
+            newer.classes[1].methods[0].descriptor = "(I)V".into();
+            [file("official", "vanilla", "1.21", false), newer]
+        };
+        let newer = |d: &Dataset| {
+            let mut profiles = d.profiles.iter();
+            let p = profiles.find(|p| p.profile_id == "mc1_21_11_standard_none");
+            p.unwrap().clone()
+        };
+        let int = Type::Primitive { name: "int".into() };
+        let mut c = catalog();
+        c.fields[0]
+            .type_by_version
+            .insert("1.21.11".into(), int.clone());
+        c.methods[1]
+            .parameters_by_version
+            .insert("1.21.11".into(), vec![int.clone()]);
+        c.methods[1]
+            .returns_by_version
+            .insert("1.21.11".into(), Type::Void);
+        let d = export(&c, &files(), 1).unwrap();
+        assert_eq!(d.profiles.len(), 2, "different tables are not shared");
+        let p = newer(&d);
+        assert_eq!(p.fields[0].field_type, int);
+        let tick = &p.methods[1];
+        assert_eq!(
+            (tick.id.as_str(), &tick.parameters, &tick.returns),
+            ("minecraft.client.tick", &vec![int.clone()], &Type::Void)
+        );
+        assert!(d.catalog.scoped.is_empty());
+        // A symbol limited to 1.21 has no record in the 1.21.11 profile.
+        c.methods[1].versions = vec!["1.21".into()];
+        let d = export(&c, &files(), 1).unwrap();
+        assert_eq!(newer(&d).methods.len(), 1);
+        assert_eq!(d.catalog.scoped.len(), 1);
+        assert_eq!(
+            (
+                d.catalog.scoped[0].id.as_str(),
+                &d.catalog.scoped[0].minecraft_versions
+            ),
+            ("minecraft.client.tick", &vec!["1.21".to_owned()])
+        );
+        // A member cannot exist in a version that lacks a class of its signature.
+        c.fields[0].type_by_version.clear();
+        c.classes[1].versions = vec!["1.21".into()];
+        let err = export(&c, &files(), 1).unwrap_err();
+        assert!(
+            err.iter()
+                .any(|e| e.contains("class minecraft.entity does not exist in 1.21.11")),
+            "{err:?}"
+        );
+    }
+
+    #[test]
+    fn shipped_catalog_is_valid() {
+        let text = include_str!("../../consumers/mc_mappings/catalog-v1.json");
+        let c: Catalog = serde_json::from_str(text).unwrap();
+        assert_eq!(c.validate(), Vec::<String>::new());
     }
 
     #[test]

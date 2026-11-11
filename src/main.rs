@@ -125,7 +125,7 @@ enum Command {
         #[command(subcommand)]
         action: CacheAction,
     },
-    /// Convert generated files into an mc-mappings dataset (table format schema 1).
+    /// Convert generated files into an mc-mappings dataset (table format schema 2).
     McMappings {
         /// Semantic catalog (format `mc_mappings_catalog`).
         #[arg(long)]

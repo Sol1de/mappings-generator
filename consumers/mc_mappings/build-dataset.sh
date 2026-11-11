@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
-# Builds the mc-mappings dataset (table format schema 1) for its ten target configurations:
+# Builds the mc-mappings dataset (table format schema 2) for its ten target configurations:
 # Minecraft 1.21 and 1.21.11 x {standard vanilla, fabric, forge; Lunar, Lunar + Fabric}.
 #
 # Usage: consumers/mc_mappings/build-dataset.sh OUT_DIR DATA_VERSION [--locked LOCK]
